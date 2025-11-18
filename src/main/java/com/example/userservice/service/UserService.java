@@ -1,7 +1,12 @@
 package com.example.userservice.service;
 
+import com.example.userservice.dto.PaymentCardResponseDTO;
+import com.example.userservice.dto.UserRequestDTO;
+import com.example.userservice.dto.UserResponseDTO;
 import com.example.userservice.entity.PaymentCard;
 import com.example.userservice.entity.User;
+import com.example.userservice.mapper.PaymentCardMapper;
+import com.example.userservice.mapper.UserMapper;
 import com.example.userservice.repository.PaymentCardRepository;
 import com.example.userservice.repository.UserRepository;
 import com.example.userservice.specification.UserSpecifications;
@@ -16,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -23,51 +29,62 @@ import java.util.Optional;
 public class UserService {
     private final UserRepository userRepository;
     private final PaymentCardRepository paymentCardRepository;
+    private final UserMapper userMapper;
+    private final PaymentCardMapper paymentCardMapper;
 
     @Transactional
-    public User createUser(User user) {
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new IllegalArgumentException("User with email " + user.getEmail() + " already exists");
+    public UserResponseDTO createUser(UserRequestDTO userRequestDTO) {
+        if (userRepository.existsByEmail(userRequestDTO.getEmail())) {
+            throw new IllegalArgumentException("User with email " + userRequestDTO.getEmail() + " already exists");
         }
-        return userRepository.save(user);
+        User user = userMapper.toEntity(userRequestDTO);
+        User savedUser = userRepository.save(user);
+        return userMapper.toDTO(savedUser);
     }
 
-    public User getUserById(Long id) {
-        return userRepository.findById(id)
+    public UserResponseDTO getUserById(Long id) {
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
+        return userMapper.toDTO(user);
     }
 
-    public Page<User> getAllUsers(String firstName, String surname, Boolean active, Pageable pageable) {
-        Specification<User> spec = Specification.where(UserSpecifications.hasFirstName(firstName))
+    public Page<UserResponseDTO> getAllUsers(String name, String surname, Boolean active, Pageable pageable) {
+        Specification<User> spec = Specification.where(UserSpecifications.hasFirstName(name))
                 .and(UserSpecifications.hasSurname(surname))
                 .and(UserSpecifications.isActive(active));
 
-        return userRepository.findAll(spec, pageable);
+        return userRepository.findAll(spec, pageable).map(userMapper::toDTO);
     }
 
-    public Page<User> getActiveUsers(Pageable pageable) {
-        return userRepository.findByActiveTrue(pageable);
+    public Page<UserResponseDTO> getActiveUsers(Pageable pageable) {
+        return userRepository.findByActiveTrue(pageable).map(userMapper::toDTO);
     }
 
-    public Page<User> getUsersByNameAndSurnameContaining(String name, String surname, Pageable pageable) {
-        return userRepository.findByNameAndSurnameContaining(name, surname, pageable);
+    public Page<UserResponseDTO> getUsersByNameAndSurnameContaining(String name, String surname, Pageable pageable) {
+        return userRepository.findByNameAndSurnameContaining(name, surname, pageable).map(userMapper::toDTO);
     }
 
-    public Page<User> getActiveUsersBornBefore(LocalDate birthDate, Pageable pageable) {
-        return userRepository.findActiveUsersBornBefore(birthDate, true, pageable);
+    public Page<UserResponseDTO> getActiveUsersBornBefore(LocalDate birthDate, Pageable pageable) {
+        return userRepository.findActiveUsersBornBefore(birthDate, true, pageable).map(userMapper::toDTO);
     }
 
     @Transactional
-    public User updateUser(Long id, User userDetails) {
+    public UserResponseDTO updateUser(Long id, UserRequestDTO userRequestDTO) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
 
-        user.setName(userDetails.getName());
-        user.setSurname(userDetails.getSurname());
-        user.setBirthDate(userDetails.getBirthDate());
-        user.setEmail(userDetails.getEmail());
+        user.setName(userRequestDTO.getName());
+        user.setSurname(userRequestDTO.getSurname());
+        user.setBirthDate(userRequestDTO.getBirthDate());
+        user.setEmail(userRequestDTO.getEmail());
 
-        return userRepository.save(user);
+        User updatedUser = userRepository.save(user);
+        return userMapper.toDTO(updatedUser);
+    }
+
+    User getUserEntityById(Long id){
+        return userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
     }
 
     @Transactional
@@ -80,11 +97,12 @@ public class UserService {
         userRepository.updateActiveStatus(id, false);
     }
 
-    public List<PaymentCard> getUserCards(Long userId) {
-        return paymentCardRepository.findByUserId(userId);
+    public List<PaymentCardResponseDTO> getUserCards(Long userId) {
+        List<PaymentCard> cards = paymentCardRepository.findByUserId(userId);
+        return cards.stream().map(paymentCardMapper::toDTO).collect(Collectors.toList());
     }
 
-    public Optional<User> getUserByEmail(String email) {
-        return userRepository.findByEmail(email);
+    public Optional<UserResponseDTO> getUserByEmail(String email) {
+        return userRepository.findByEmail(email).map(userMapper::toDTO);
     }
 }
