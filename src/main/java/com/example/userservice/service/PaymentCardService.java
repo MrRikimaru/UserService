@@ -13,6 +13,8 @@ import com.example.userservice.specification.PaymentCardSpecifications;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -26,8 +28,13 @@ public class PaymentCardService {
     private final PaymentCardRepository paymentCardRepository;
     private final UserService userService;
     private final PaymentCardMapper paymentCardMapper;
+    private final CacheService cacheService;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "userCards", key = "#userId"),
+            @CacheEvict(value = "usersWithCards", key = "#userId")
+    })
     public PaymentCardResponseDTO createCard(PaymentCardRequestDTO cardRequestDTO, Long userId) {
         User user = userService.getUserEntityById(userId);
 
@@ -69,6 +76,10 @@ public class PaymentCardService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "userCards", key = "#result.userId"),
+            @CacheEvict(value = "usersWithCards", key = "#result.userId")
+    })
     public PaymentCardResponseDTO updateCard(Long id, PaymentCardRequestDTO cardRequestDTO) {
         PaymentCard card = paymentCardRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + id));
@@ -91,12 +102,16 @@ public class PaymentCardService {
 
     @Transactional
     public void activateCard(Long id) {
+        PaymentCard card = getCardEntityById(id);
         paymentCardRepository.updateActiveStatus(id, true);
+        cacheService.evictUserCaches(card.getUser().getId());
     }
 
     @Transactional
     public void deactivateCard(Long id) {
+        PaymentCard card = getCardEntityById(id);
         paymentCardRepository.updateActiveStatus(id, false);
+        cacheService.evictUserCaches(card.getUser().getId());
     }
 
     public PaymentCardResponseDTO getCardByUserAndId(Long userId, Long cardId) {
@@ -109,5 +124,10 @@ public class PaymentCardService {
         PaymentCard card = paymentCardRepository.findByNumber(number)
                 .orElseThrow(() -> new PaymentCardNotFoundException("Card not found with number: " + number));
         return paymentCardMapper.toDTO(card);
+    }
+
+    private PaymentCard getCardEntityById(Long id){
+        return paymentCardRepository.findById(id)
+                .orElseThrow(() -> new PaymentCardNotFoundException("Payment card not found with id: " + id));
     }
 }
