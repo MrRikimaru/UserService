@@ -4,9 +4,11 @@ import com.example.userservice.dto.PaymentCardRequestDTO;
 import com.example.userservice.dto.PaymentCardResponseDTO;
 import com.example.userservice.entity.PaymentCard;
 import com.example.userservice.entity.User;
+import com.example.userservice.exception.CardLimitExceededException;
+import com.example.userservice.exception.DuplicateCardNumberException;
+import com.example.userservice.exception.PaymentCardNotFoundException;
 import com.example.userservice.mapper.PaymentCardMapper;
 import com.example.userservice.repository.PaymentCardRepository;
-import com.example.userservice.repository.UserRepository;
 import com.example.userservice.specification.PaymentCardSpecifications;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -31,7 +33,7 @@ public class PaymentCardService {
 
         int cardCount = paymentCardRepository.countCardsByUserId(userId);
         if (cardCount >= 5) {
-            throw new IllegalStateException("User cannot have more than 5 payment cards");
+            throw new CardLimitExceededException("User cannot have more than 5 payment cards");
         }
 
         PaymentCard card = paymentCardMapper.toEntity(cardRequestDTO);
@@ -41,7 +43,8 @@ public class PaymentCardService {
     }
 
     public PaymentCardResponseDTO getCardById(Long id) {
-        PaymentCard card = paymentCardRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + id));
+        PaymentCard card = paymentCardRepository.findById(id)
+                .orElseThrow(() -> new PaymentCardNotFoundException("Payment card not found with id: " + id));
         return paymentCardMapper.toDTO(card);
     }
 
@@ -73,7 +76,7 @@ public class PaymentCardService {
         if (!card.getNumber().equals(cardRequestDTO.getNumber())) {
             paymentCardRepository.findByNumber(cardRequestDTO.getNumber()).ifPresent(existingCard -> {
                 if (!existingCard.getId().equals(id)) {
-                    throw new IllegalArgumentException("Card with this number already exists");
+                    throw new DuplicateCardNumberException("Card with this number already exists");
                 }
             });
         }
@@ -98,13 +101,13 @@ public class PaymentCardService {
 
     public PaymentCardResponseDTO getCardByUserAndId(Long userId, Long cardId) {
         PaymentCard card = paymentCardRepository.findByIdAndUserId(cardId, userId)
-                .orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + cardId + " for user: " + userId));
+                .orElseThrow(() -> new PaymentCardNotFoundException("Payment card not found with id: " + cardId + " for user: " + userId));
         return paymentCardMapper.toDTO(card);
     }
 
     public PaymentCardResponseDTO getCardByNumber(String number) {
         PaymentCard card = paymentCardRepository.findByNumber(number)
-                .orElseThrow(() -> new EntityNotFoundException("Card not found with number: " + number));
+                .orElseThrow(() -> new PaymentCardNotFoundException("Card not found with number: " + number));
         return paymentCardMapper.toDTO(card);
     }
 }
