@@ -3,6 +3,7 @@ package com.example.userservice.controller;
 import com.example.userservice.dto.PaymentCardResponseDTO;
 import com.example.userservice.dto.UserRequestDTO;
 import com.example.userservice.dto.UserResponseDTO;
+import com.example.userservice.dto.UserWithCardsResponseDTO;
 import com.example.userservice.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -72,6 +73,12 @@ public class UserController {
             @Valid @RequestBody UserRequestDTO userRequestDTO) {
         UserResponseDTO updatedUser = userService.updateUser(id, userRequestDTO);
         return ResponseEntity.ok(updatedUser);
+    }
+
+    @GetMapping("/{id}/with-cards")
+    public ResponseEntity<UserWithCardsResponseDTO> getUserWithCardsById(@PathVariable Long id) {
+        UserWithCardsResponseDTO userWithCards = userService.getUserWithCardsById(id);
+        return ResponseEntity.ok(userWithCards);
     }
 
     @PatchMapping("/{id}/activate")
