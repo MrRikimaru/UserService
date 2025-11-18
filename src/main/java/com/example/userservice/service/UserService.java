@@ -3,6 +3,7 @@ package com.example.userservice.service;
 import com.example.userservice.dto.PaymentCardResponseDTO;
 import com.example.userservice.dto.UserRequestDTO;
 import com.example.userservice.dto.UserResponseDTO;
+import com.example.userservice.dto.UserWithCardsResponseDTO;
 import com.example.userservice.entity.PaymentCard;
 import com.example.userservice.entity.User;
 import com.example.userservice.exception.DuplicateEmailException;
@@ -14,6 +15,10 @@ import com.example.userservice.repository.UserRepository;
 import com.example.userservice.specification.UserSpecifications;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -34,6 +39,10 @@ public class UserService {
     private final PaymentCardMapper paymentCardMapper;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "users", allEntries = true),
+            @CacheEvict(value = "usersWithCards", allEntries = true)
+    })
     public UserResponseDTO createUser(UserRequestDTO userRequestDTO) {
         if (userRepository.existsByEmail(userRequestDTO.getEmail())) {
             throw new DuplicateEmailException("User with email " + userRequestDTO.getEmail() + " already exists");
@@ -43,12 +52,35 @@ public class UserService {
         return userMapper.toDTO(savedUser);
     }
 
+    @Cacheable(value = "users", key = "#id")
     public UserResponseDTO getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
         return userMapper.toDTO(user);
     }
 
+    @Cacheable(value = "usersWithCards", key = "#id")
+    public UserWithCardsResponseDTO getUserWithCardsById(Long id){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+        UserWithCardsResponseDTO userWithCards = new UserWithCardsResponseDTO();
+        userWithCards.setId(user.getId());
+        userWithCards.setName(user.getName());
+        userWithCards.setSurname(user.getSurname());
+        userWithCards.setBirthDate(user.getBirthDate());
+        userWithCards.setEmail(user.getEmail());
+        userWithCards.setActive(user.getActive());
+        userWithCards.setCreatedAt(user.getCreatedAt());
+        userWithCards.setUpdatedAt(user.getUpdatedAt());
+
+        List<PaymentCardResponseDTO> cards = paymentCardRepository.findByUserId(id)
+                .stream()
+                .map(paymentCardMapper::toDTO)
+                .collect(Collectors.toList());
+        userWithCards.setPaymentCards(cards);
+
+        return userWithCards;
+    }
     public Page<UserResponseDTO> getAllUsers(String name, String surname, Boolean active, Pageable pageable) {
         Specification<User> spec = Specification.where(UserSpecifications.hasFirstName(name))
                 .and(UserSpecifications.hasSurname(surname))
@@ -70,6 +102,10 @@ public class UserService {
     }
 
     @Transactional
+    @Caching(put = {
+            @CachePut(value = "users", key = "#id"),
+            @CachePut(value = "usersWithCards", key = "#id")
+    })
     public UserResponseDTO updateUser(Long id, UserRequestDTO userRequestDTO) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
@@ -89,15 +125,24 @@ public class UserService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "users", key = "#id"),
+            @CacheEvict(value = "usersWithCards", key = "#id")
+    })
     public void activateUser(Long id) {
         userRepository.updateActiveStatus(id, true);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "users", key = "#id"),
+            @CacheEvict(value = "usersWithCards", key = "#id")
+    })
     @Transactional
     public void deactivateUser(Long id) {
         userRepository.updateActiveStatus(id, false);
     }
 
+    @Cacheable(value = "userCards", key = "#userId")
     public List<PaymentCardResponseDTO> getUserCards(Long userId) {
         List<PaymentCard> cards = paymentCardRepository.findByUserId(userId);
         return cards.stream().map(paymentCardMapper::toDTO).collect(Collectors.toList());
