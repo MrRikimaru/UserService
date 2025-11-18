@@ -49,4 +49,12 @@ public class User {
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public void addPaymentCard(PaymentCard card){
+        if (paymentCards.size() >= 5){
+            throw  new IllegalStateException("User cannot have more than 5 payment cards");
+        }
+        paymentCards.add(card);
+        card.setUser(this);
+    }
 }
