@@ -5,12 +5,13 @@ import com.example.userservice.dto.UserRequestDTO;
 import com.example.userservice.dto.UserResponseDTO;
 import com.example.userservice.entity.PaymentCard;
 import com.example.userservice.entity.User;
+import com.example.userservice.exception.DuplicateEmailException;
+import com.example.userservice.exception.UserNotFoundException;
 import com.example.userservice.mapper.PaymentCardMapper;
 import com.example.userservice.mapper.UserMapper;
 import com.example.userservice.repository.PaymentCardRepository;
 import com.example.userservice.repository.UserRepository;
 import com.example.userservice.specification.UserSpecifications;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,7 +36,7 @@ public class UserService {
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO userRequestDTO) {
         if (userRepository.existsByEmail(userRequestDTO.getEmail())) {
-            throw new IllegalArgumentException("User with email " + userRequestDTO.getEmail() + " already exists");
+            throw new DuplicateEmailException("User with email " + userRequestDTO.getEmail() + " already exists");
         }
         User user = userMapper.toEntity(userRequestDTO);
         User savedUser = userRepository.save(user);
@@ -44,7 +45,7 @@ public class UserService {
 
     public UserResponseDTO getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
         return userMapper.toDTO(user);
     }
 
@@ -71,7 +72,7 @@ public class UserService {
     @Transactional
     public UserResponseDTO updateUser(Long id, UserRequestDTO userRequestDTO) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
 
         user.setName(userRequestDTO.getName());
         user.setSurname(userRequestDTO.getSurname());
@@ -84,7 +85,7 @@ public class UserService {
 
     User getUserEntityById(Long id){
         return userRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
     }
 
     @Transactional
