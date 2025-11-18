@@ -1,7 +1,10 @@
 package com.example.userservice.service;
 
+import com.example.userservice.dto.PaymentCardRequestDTO;
+import com.example.userservice.dto.PaymentCardResponseDTO;
 import com.example.userservice.entity.PaymentCard;
 import com.example.userservice.entity.User;
+import com.example.userservice.mapper.PaymentCardMapper;
 import com.example.userservice.repository.PaymentCardRepository;
 import com.example.userservice.repository.UserRepository;
 import com.example.userservice.specification.PaymentCardSpecifications;
@@ -20,59 +23,67 @@ public class PaymentCardService {
 
     private final PaymentCardRepository paymentCardRepository;
     private final UserService userService;
+    private final PaymentCardMapper paymentCardMapper;
 
     @Transactional
-    public PaymentCard createCard(PaymentCard card, Long userId) {
-        User user = userService.getUserById(userId);
+    public PaymentCardResponseDTO createCard(PaymentCardRequestDTO cardRequestDTO, Long userId) {
+        User user = userService.getUserEntityById(userId);
 
         int cardCount = paymentCardRepository.countCardsByUserId(userId);
         if (cardCount >= 5) {
             throw new IllegalStateException("User cannot have more than 5 payment cards");
         }
 
+        PaymentCard card = paymentCardMapper.toEntity(cardRequestDTO);
         user.addPaymentCard(card);
-        return paymentCardRepository.save(card);
+        PaymentCard savedCard = paymentCardRepository.save(card);
+        return paymentCardMapper.toDTO(savedCard);
     }
 
-    public PaymentCard getCardById(Long id) {
-        return paymentCardRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + id));
+    public PaymentCardResponseDTO getCardById(Long id) {
+        PaymentCard card = paymentCardRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + id));
+        return paymentCardMapper.toDTO(card);
     }
 
-    public Page<PaymentCard> getAllCards(String holderName, Boolean active, Long userId, Pageable pageable) {
-        Specification<PaymentCard> spec = Specification.where(PaymentCardSpecifications.hasHolderName(holderName)).and(PaymentCardSpecifications.isActive(active)).and(PaymentCardSpecifications.hasUserId(userId));
+    public Page<PaymentCardResponseDTO> getAllCards(String holder, Boolean active, Long userId, Pageable pageable) {
+        Specification<PaymentCard> spec = Specification.where(PaymentCardSpecifications.hasHolderName(holder))
+                .and(PaymentCardSpecifications.isActive(active))
+                .and(PaymentCardSpecifications.hasUserId(userId));
 
-        return paymentCardRepository.findAll(spec, pageable);
+        return paymentCardRepository.findAll(spec, pageable).map(paymentCardMapper::toDTO);
     }
 
-    public Page<PaymentCard> getActiveCards(Pageable pageable) {
-        return paymentCardRepository.findByActiveTrue(pageable);
+    public Page<PaymentCardResponseDTO> getActiveCards(Pageable pageable) {
+        return paymentCardRepository.findByActiveTrue(pageable).map(paymentCardMapper::toDTO);
     }
 
-    public Page<PaymentCard> getAllCardsByUserId(Long userId, Pageable pageable) {
-        return paymentCardRepository.findByUserId(userId, pageable);
+    public Page<PaymentCardResponseDTO> getAllCardsByUserId(Long userId, Pageable pageable) {
+        return paymentCardRepository.findByUserId(userId, pageable).map(paymentCardMapper::toDTO);
     }
 
-    public Page<PaymentCard> getActiveCardsByUserId(Long userId, Pageable pageable) {
-        return paymentCardRepository.findByUserIdAndActiveStatus(userId, true, pageable);
+    public Page<PaymentCardResponseDTO> getActiveCardsByUserId(Long userId, Pageable pageable) {
+        return paymentCardRepository.findByUserIdAndActiveStatus(userId, true, pageable).map(paymentCardMapper::toDTO);
     }
 
     @Transactional
-    public PaymentCard updateCard(Long id, PaymentCard cardDetails) {
-        PaymentCard card = getCardById(id);
+    public PaymentCardResponseDTO updateCard(Long id, PaymentCardRequestDTO cardRequestDTO) {
+        PaymentCard card = paymentCardRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + id));
 
-        if (!card.getNumber().equals(cardDetails.getNumber())) {
-            paymentCardRepository.findByNumber(cardDetails.getNumber()).ifPresent(existingCard -> {
+        if (!card.getNumber().equals(cardRequestDTO.getNumber())) {
+            paymentCardRepository.findByNumber(cardRequestDTO.getNumber()).ifPresent(existingCard -> {
                 if (!existingCard.getId().equals(id)) {
                     throw new IllegalArgumentException("Card with this number already exists");
                 }
             });
         }
 
-        card.setNumber(cardDetails.getNumber());
-        card.setHolder(cardDetails.getHolder());
-        card.setExpirationDate(cardDetails.getExpirationDate());
+        card.setNumber(cardRequestDTO.getNumber());
+        card.setHolder(cardRequestDTO.getHolder());
+        card.setExpirationDate(cardRequestDTO.getExpirationDate());
 
-        return paymentCardRepository.save(card);
+        PaymentCard updatedCard = paymentCardRepository.save(card);
+        return paymentCardMapper.toDTO(updatedCard);
     }
 
     @Transactional
@@ -85,11 +96,15 @@ public class PaymentCardService {
         paymentCardRepository.updateActiveStatus(id, false);
     }
 
-    public PaymentCard getCardByUserAndId(Long userId, Long cardId) {
-        return paymentCardRepository.findByIdAndUserId(cardId, userId).orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + cardId + " for user: " + userId));
+    public PaymentCardResponseDTO getCardByUserAndId(Long userId, Long cardId) {
+        PaymentCard card = paymentCardRepository.findByIdAndUserId(cardId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + cardId + " for user: " + userId));
+        return paymentCardMapper.toDTO(card);
     }
 
-    public PaymentCard getCardByNumber(String number) {
-        return paymentCardRepository.findByNumber(number).orElseThrow(() -> new EntityNotFoundException("Card not found with number: " + number));
+    public PaymentCardResponseDTO getCardByNumber(String number) {
+        PaymentCard card = paymentCardRepository.findByNumber(number)
+                .orElseThrow(() -> new EntityNotFoundException("Card not found with number: " + number));
+        return paymentCardMapper.toDTO(card);
     }
 }
