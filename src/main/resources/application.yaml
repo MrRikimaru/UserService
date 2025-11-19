@@ -9,3 +9,24 @@ spring:
       ddl-auto: validate
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      database: 0
+      timeout: 60000
+      connect-timeout: 10000
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000    # 1 час в миллисекундах
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "user-service:"
