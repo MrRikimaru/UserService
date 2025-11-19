@@ -72,6 +72,14 @@ dependencies {
 
 test {
 	useJUnitPlatform()
+	testLogging {
+		events "passed", "skipped", "failed"
+		exceptionFormat "full"
+	}
+	systemProperty "spring.profiles.active", "test"
+	// Отключаем параллельное выполнение тестов
+	maxParallelForks = 1
+	forkEvery = 1
 }
 
 compileJava {
