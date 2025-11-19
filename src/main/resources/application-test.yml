@@ -2,7 +2,7 @@ spring:
   datasource:
     hikari:
       maximum-pool-size: 5
-      connection-timeout: 30000
+      connection-timeout: 60000  # Увеличил таймаут
       max-lifetime: 1800000
       idle-timeout: 600000
   jpa:
@@ -16,16 +16,18 @@ spring:
     defer-datasource-initialization: true
   data:
     redis:
-      timeout: 10000
+      timeout: 30000  # Увеличил таймаут Redis
       lettuce:
         pool:
           max-active: 8
           max-idle: 8
           min-idle: 2
-          max-wait: 10000
+          max-wait: 30000
   sql:
     init:
       mode: always
+  liquibase:
+    enabled: false  # Явно отключаем Liquibase в тестах
 
 logging:
   level:

@@ -2,7 +2,10 @@ package com.example.userservice.integration;
 
 import com.example.userservice.dto.UserRequestDTO;
 import com.example.userservice.dto.UserResponseDTO;
+import com.example.userservice.service.CacheService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -24,11 +27,21 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private CacheService cacheService;
+
+    @BeforeEach
+    void setUp() {
+        // Очищаем кэш перед каждым тестом
+        cacheService.evictAllUserCaches();
+    }
+
     private String generateUniqueEmail() {
         return "user." + UUID.randomUUID().toString().substring(0, 8) + "@example.com";
     }
 
     @Test
+    @Order(1)
     void createUser_ShouldReturnCreatedUser_WhenValidInput() throws Exception {
         // Arrange
         UserRequestDTO requestDTO = new UserRequestDTO();
@@ -52,6 +65,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @Order(2)
     void getUserById_ShouldReturnUser_WhenUserExists() throws Exception {
         // Arrange - сначала создаем пользователя
         UserRequestDTO createRequest = new UserRequestDTO();
@@ -79,6 +93,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @Order(3)
     void getUserById_ShouldReturnNotFound_WhenUserNotExists() {
         // Act
         ResponseEntity<String> response = restTemplate.getForEntity(
@@ -89,6 +104,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @Order(4)
     void updateUser_ShouldReturnUpdatedUser_WhenValidInput() throws Exception {
         // Arrange - создаем пользователя
         UserRequestDTO createRequest = new UserRequestDTO();
@@ -124,6 +140,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @Order(5)
     void activateUser_ShouldActivateUser() throws Exception {
         // Arrange - создаем неактивного пользователя
         UserRequestDTO createRequest = new UserRequestDTO();
@@ -151,6 +168,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @Order(6)
     void getAllUsers_ShouldReturnPageOfUsers() throws Exception {
         // Arrange - создаем тестового пользователя
         UserRequestDTO createRequest = new UserRequestDTO();
