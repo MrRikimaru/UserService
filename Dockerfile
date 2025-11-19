@@ -1,13 +1,19 @@
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre as builder
 WORKDIR /app
+ARG JAR_FILE=build/libs/*.jar
+COPY ${JAR_FILE} app.jar
+RUN java -Djarmode=tools -jar app.jar extract --layers --destination extracted
 
-# Копируем собранный JAR файл
-COPY build/libs/UserService-0.0.1-SNAPSHOT.jar app.jar
-
-# Создаем пользователя для безопасности
-RUN adduser --system --group spring
+FROM eclipse-temurin:21-jre
+RUN addgroup --system spring && adduser --system --group spring
 USER spring:spring
+
+WORKDIR /app
+COPY --from=builder /app/extracted/dependencies/ ./
+COPY --from=builder /app/extracted/spring-boot-loader/ ./
+COPY --from=builder /app/extracted/snapshot-dependencies/ ./
+COPY --from=builder /app/extracted/application/ ./
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
