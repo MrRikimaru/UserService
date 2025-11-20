@@ -5,6 +5,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
 public class PaymentCardSpecifications {
+    private PaymentCardSpecifications() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     public static Specification<PaymentCard> hasHolderName(String holder) {
         return (root, query, criteriaBuilder) -> {

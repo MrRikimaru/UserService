@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 @Transactional
 @RequiredArgsConstructor
 public class PaymentCardService {
+    private static final String PAYMENT_CARD_NOT_FOUND_MESSAGE = "Payment card not found with id: ";
 
     private final PaymentCardRepository paymentCardRepository;
     private final UserService userService;
@@ -51,7 +52,7 @@ public class PaymentCardService {
 
     public PaymentCardResponseDTO getCardById(Long id) {
         PaymentCard card = paymentCardRepository.findById(id)
-                .orElseThrow(() -> new PaymentCardNotFoundException("Payment card not found with id: " + id));
+                .orElseThrow(() -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
         return paymentCardMapper.toDTO(card);
     }
 
@@ -82,7 +83,7 @@ public class PaymentCardService {
     })
     public PaymentCardResponseDTO updateCard(Long id, PaymentCardRequestDTO cardRequestDTO) {
         PaymentCard card = paymentCardRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Payment card not found with id: " + id));
+                .orElseThrow(() -> new EntityNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
 
         if (!card.getNumber().equals(cardRequestDTO.getNumber())) {
             paymentCardRepository.findByNumber(cardRequestDTO.getNumber()).ifPresent(existingCard -> {
@@ -116,7 +117,7 @@ public class PaymentCardService {
 
     public PaymentCardResponseDTO getCardByUserAndId(Long userId, Long cardId) {
         PaymentCard card = paymentCardRepository.findByIdAndUserId(cardId, userId)
-                .orElseThrow(() -> new PaymentCardNotFoundException("Payment card not found with id: " + cardId + " for user: " + userId));
+                .orElseThrow(() -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + cardId + " for user: " + userId));
         return paymentCardMapper.toDTO(card);
     }
 
@@ -128,6 +129,6 @@ public class PaymentCardService {
 
     private PaymentCard getCardEntityById(Long id){
         return paymentCardRepository.findById(id)
-                .orElseThrow(() -> new PaymentCardNotFoundException("Payment card not found with id: " + id));
+                .orElseThrow(() -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
     }
 }

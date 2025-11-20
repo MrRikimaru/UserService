@@ -5,6 +5,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
 public class UserSpecifications {
+    private UserSpecifications() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
+
     public static Specification<User> hasFirstName(String name) {
         return (root, query, criteriaBuilder) -> {
             if (!StringUtils.hasText(name)) {

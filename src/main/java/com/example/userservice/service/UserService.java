@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 @Transactional
 @RequiredArgsConstructor
 public class UserService {
+    private static final String USER_NOT_FOUND_MESSAGE = "User not found with id: ";
+
     private final UserRepository userRepository;
     private final PaymentCardRepository paymentCardRepository;
     private final UserMapper userMapper;
@@ -55,14 +57,14 @@ public class UserService {
     @Cacheable(value = "users", key = "#id")
     public UserResponseDTO getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
         return userMapper.toDTO(user);
     }
 
     @Cacheable(value = "usersWithCards", key = "#id")
     public UserWithCardsResponseDTO getUserWithCardsById(Long id){
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
         UserWithCardsResponseDTO userWithCards = new UserWithCardsResponseDTO();
         userWithCards.setId(user.getId());
         userWithCards.setName(user.getName());
@@ -76,7 +78,7 @@ public class UserService {
         List<PaymentCardResponseDTO> cards = paymentCardRepository.findByUserId(id)
                 .stream()
                 .map(paymentCardMapper::toDTO)
-                .collect(Collectors.toList());
+                .toList();
         userWithCards.setPaymentCards(cards);
 
         return userWithCards;
@@ -108,7 +110,7 @@ public class UserService {
     })
     public UserResponseDTO updateUser(Long id, UserRequestDTO userRequestDTO) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
 
         user.setName(userRequestDTO.getName());
         user.setSurname(userRequestDTO.getSurname());
@@ -121,7 +123,7 @@ public class UserService {
 
     User getUserEntityById(Long id){
         return userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
     }
 
     @Transactional
@@ -145,7 +147,7 @@ public class UserService {
     @Cacheable(value = "userCards", key = "#userId")
     public List<PaymentCardResponseDTO> getUserCards(Long userId) {
         List<PaymentCard> cards = paymentCardRepository.findByUserId(userId);
-        return cards.stream().map(paymentCardMapper::toDTO).collect(Collectors.toList());
+        return cards.stream().map(paymentCardMapper::toDTO).toList();
     }
 
     public Optional<UserResponseDTO> getUserByEmail(String email) {
