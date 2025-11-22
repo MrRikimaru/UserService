@@ -245,4 +245,239 @@ class PaymentCardServiceTest {
         assertEquals(cardId, result.getId());
         verify(paymentCardRepository).findByIdAndUserId(cardId, userId);
     }
+
+    @Test
+    void deactivateCard_ShouldUpdateStatusAndEvictCache() {
+        // Arrange
+        Long cardId = 1L;
+        PaymentCard card = new PaymentCard();
+        User user = new User();
+        user.setId(1L);
+        card.setUser(user);
+
+        when(paymentCardRepository.findById(cardId)).thenReturn(Optional.of(card));
+
+        // Act
+        paymentCardService.deactivateCard(cardId);
+
+        // Assert
+        verify(paymentCardRepository).updateActiveStatus(cardId, false);
+        verify(cacheService).evictUserCaches(1L);
+    }
+
+    @Test
+    void deleteCard_ShouldDeleteCardAndEvictCache() {
+        // Arrange
+        Long cardId = 1L;
+        PaymentCard card = new PaymentCard();
+        User user = new User();
+        user.setId(1L);
+        card.setUser(user);
+
+        when(paymentCardRepository.findById(cardId)).thenReturn(Optional.of(card));
+
+        // Act
+        paymentCardService.deleteCard(cardId);
+
+        // Assert
+        verify(paymentCardRepository).findById(cardId);
+        verify(paymentCardRepository).deleteById(cardId);
+        verify(cacheService).evictUserCaches(1L);
+    }
+
+    @Test
+    void deleteCard_ShouldThrowPaymentCardNotFoundException_WhenCardNotExists() {
+        // Arrange
+        Long cardId = 999L;
+        when(paymentCardRepository.findById(cardId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(PaymentCardNotFoundException.class, () -> paymentCardService.deleteCard(cardId));
+        verify(paymentCardRepository, never()).deleteById(anyLong());
+        verify(cacheService, never()).evictUserCaches(anyLong());
+    }
+
+    @Test
+    void getCardByNumber_ShouldReturnCard_WhenCardExists() {
+        // Arrange
+        String cardNumber = "1234567890123456";
+        PaymentCard card = new PaymentCard();
+        card.setId(1L);
+        card.setNumber(cardNumber);
+        PaymentCardResponseDTO responseDTO = new PaymentCardResponseDTO();
+        responseDTO.setId(1L);
+        responseDTO.setNumber(cardNumber);
+
+        when(paymentCardRepository.findByNumber(cardNumber)).thenReturn(Optional.of(card));
+        when(paymentCardMapper.toDTO(any(PaymentCard.class))).thenReturn(responseDTO);
+
+        // Act
+        PaymentCardResponseDTO result = paymentCardService.getCardByNumber(cardNumber);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(cardNumber, result.getNumber());
+        verify(paymentCardRepository).findByNumber(cardNumber);
+    }
+
+    @Test
+    void getCardByNumber_ShouldThrowPaymentCardNotFoundException_WhenCardNotExists() {
+        // Arrange
+        String cardNumber = "9999999999999999";
+        when(paymentCardRepository.findByNumber(cardNumber)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(PaymentCardNotFoundException.class, () -> paymentCardService.getCardByNumber(cardNumber));
+    }
+
+    @Test
+    void updateCard_ShouldThrowIllegalArgumentException_WhenExpirationDateInPast() {
+        // Arrange
+        Long cardId = 1L;
+        PaymentCardRequestDTO requestDTO = new PaymentCardRequestDTO();
+        requestDTO.setNumber("1234567890123456");
+        requestDTO.setHolder("Test Holder");
+        requestDTO.setExpirationDate(LocalDate.now().minusDays(1)); // Past date
+
+        PaymentCard existingCard = new PaymentCard();
+        existingCard.setId(cardId);
+        existingCard.setNumber("1234567890123456");
+
+        when(paymentCardRepository.findById(cardId)).thenReturn(Optional.of(existingCard));
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class, () -> paymentCardService.updateCard(cardId, requestDTO));
+        verify(paymentCardRepository, never()).save(any(PaymentCard.class));
+    }
+
+    @Test
+    void updateCard_ShouldNotThrowException_WhenExpirationDateIsToday() {
+        // Arrange
+        Long cardId = 1L;
+        PaymentCardRequestDTO requestDTO = new PaymentCardRequestDTO();
+        requestDTO.setNumber("1234567890123456");
+        requestDTO.setHolder("Test Holder");
+        requestDTO.setExpirationDate(LocalDate.now().plusDays(1)); // Future date
+
+        PaymentCard existingCard = new PaymentCard();
+        existingCard.setId(cardId);
+        existingCard.setNumber("1234567890123456");
+        User user = new User();
+        user.setId(1L);
+        existingCard.setUser(user);
+
+        PaymentCard updatedCard = new PaymentCard();
+        updatedCard.setId(cardId);
+        PaymentCardResponseDTO responseDTO = new PaymentCardResponseDTO();
+        responseDTO.setId(cardId);
+        responseDTO.setUserId(1L);
+
+        when(paymentCardRepository.findById(cardId)).thenReturn(Optional.of(existingCard));
+        when(paymentCardRepository.save(any(PaymentCard.class))).thenReturn(updatedCard);
+        when(paymentCardMapper.toDTO(any(PaymentCard.class))).thenReturn(responseDTO);
+
+        // Act
+        PaymentCardResponseDTO result = paymentCardService.updateCard(cardId, requestDTO);
+
+        // Assert
+        assertNotNull(result);
+        verify(paymentCardRepository).save(existingCard);
+    }
+
+    @Test
+    void getAllCardsByUserId_ShouldReturnPageOfCards() {
+        // Arrange
+        Long userId = 1L;
+        Pageable pageable = Pageable.unpaged();
+        PaymentCard card = new PaymentCard();
+        PaymentCardResponseDTO responseDTO = new PaymentCardResponseDTO();
+        Page<PaymentCard> cardPage = new PageImpl<>(List.of(card));
+
+        when(paymentCardRepository.findByUserId(userId, pageable)).thenReturn(cardPage);
+        when(paymentCardMapper.toDTO(any(PaymentCard.class))).thenReturn(responseDTO);
+
+        // Act
+        Page<PaymentCardResponseDTO> result = paymentCardService.getAllCardsByUserId(userId, pageable);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(paymentCardRepository).findByUserId(userId, pageable);
+    }
+
+    @Test
+    void getActiveCardsByUserId_ShouldReturnPageOfActiveCards() {
+        // Arrange
+        Long userId = 1L;
+        Pageable pageable = Pageable.unpaged();
+        PaymentCard card = new PaymentCard();
+        PaymentCardResponseDTO responseDTO = new PaymentCardResponseDTO();
+        Page<PaymentCard> cardPage = new PageImpl<>(List.of(card));
+
+        when(paymentCardRepository.findByUserIdAndActiveStatus(userId, true, pageable)).thenReturn(cardPage);
+        when(paymentCardMapper.toDTO(any(PaymentCard.class))).thenReturn(responseDTO);
+
+        // Act
+        Page<PaymentCardResponseDTO> result = paymentCardService.getActiveCardsByUserId(userId, pageable);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(paymentCardRepository).findByUserIdAndActiveStatus(userId, true, pageable);
+    }
+
+    @Test
+    void getActiveCards_ShouldReturnPageOfActiveCards() {
+        // Arrange
+        Pageable pageable = Pageable.unpaged();
+        PaymentCard card = new PaymentCard();
+        PaymentCardResponseDTO responseDTO = new PaymentCardResponseDTO();
+        Page<PaymentCard> cardPage = new PageImpl<>(List.of(card));
+
+        when(paymentCardRepository.findByActiveTrue(pageable)).thenReturn(cardPage);
+        when(paymentCardMapper.toDTO(any(PaymentCard.class))).thenReturn(responseDTO);
+
+        // Act
+        Page<PaymentCardResponseDTO> result = paymentCardService.getActiveCards(pageable);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(paymentCardRepository).findByActiveTrue(pageable);
+    }
+
+    @Test
+    void updateCard_ShouldNotThrowException_WhenNumberNotChanged() {
+        // Arrange
+        Long cardId = 1L;
+        PaymentCardRequestDTO requestDTO = new PaymentCardRequestDTO();
+        requestDTO.setNumber("1234567890123456");
+        requestDTO.setHolder("Updated Holder");
+        requestDTO.setExpirationDate(LocalDate.now().plusYears(2));
+
+        PaymentCard existingCard = new PaymentCard();
+        existingCard.setId(cardId);
+        existingCard.setNumber("1234567890123456");
+        User user = new User();
+        user.setId(1L);
+        existingCard.setUser(user);
+
+        PaymentCard updatedCard = new PaymentCard();
+        updatedCard.setId(cardId);
+        PaymentCardResponseDTO responseDTO = new PaymentCardResponseDTO();
+        responseDTO.setId(cardId);
+        responseDTO.setUserId(1L);
+
+        when(paymentCardRepository.findById(cardId)).thenReturn(Optional.of(existingCard));
+        when(paymentCardRepository.save(any(PaymentCard.class))).thenReturn(updatedCard);
+        when(paymentCardMapper.toDTO(any(PaymentCard.class))).thenReturn(responseDTO);
+
+        // Act
+        PaymentCardResponseDTO result = paymentCardService.updateCard(cardId, requestDTO);
+
+        // Assert
+        assertNotNull(result);
+        verify(paymentCardRepository, never()).findByNumber(anyString());
+        verify(paymentCardRepository).save(existingCard);
+    }
 }

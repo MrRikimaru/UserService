@@ -4,6 +4,7 @@ import com.example.userservice.dto.PaymentCardResponseDTO;
 import com.example.userservice.dto.UserRequestDTO;
 import com.example.userservice.dto.UserResponseDTO;
 import com.example.userservice.dto.UserWithCardsResponseDTO;
+import com.example.userservice.entity.PaymentCard;
 import com.example.userservice.entity.User;
 import com.example.userservice.exception.DuplicateEmailException;
 import com.example.userservice.exception.UserNotFoundException;
@@ -189,6 +190,10 @@ class UserServiceTest {
 
         User existingUser = new User();
         existingUser.setId(userId);
+        existingUser.setName("Original");
+        existingUser.setSurname("Name");
+        existingUser.setEmail("original@example.com"); // ДОБАВЬТЕ email
+
         User updatedUser = new User();
         updatedUser.setId(userId);
         updatedUser.setName("Updated");
@@ -214,6 +219,10 @@ class UserServiceTest {
     void activateUser_ShouldCallRepository() {
         // Arrange
         Long userId = 1L;
+        User user = new User();
+        user.setId(userId);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         // Act
         userService.activateUser(userId);
@@ -226,6 +235,10 @@ class UserServiceTest {
     void deactivateUser_ShouldCallRepository() {
         // Arrange
         Long userId = 1L;
+        User user = new User();
+        user.setId(userId);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         // Act
         userService.deactivateUser(userId);
@@ -313,5 +326,194 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
         verify(userRepository).findActiveUsersBornBefore(birthDate, true, pageable);
+    }
+
+    @Test
+    void updateUser_ShouldThrowDuplicateEmailException_WhenEmailExists() {
+        // Arrange
+        Long userId = 1L;
+        UserRequestDTO requestDTO = new UserRequestDTO();
+        requestDTO.setEmail("existing@example.com");
+        requestDTO.setName("Updated");
+        requestDTO.setSurname("Name");
+
+        User existingUser = new User();
+        existingUser.setId(userId);
+        existingUser.setEmail("old@example.com");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.existsByEmail("existing@example.com")).thenReturn(true);
+
+        // Act & Assert
+        assertThrows(DuplicateEmailException.class, () -> userService.updateUser(userId, requestDTO));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateUser_ShouldNotThrowException_WhenEmailNotChanged() {
+        // Arrange
+        Long userId = 1L;
+        UserRequestDTO requestDTO = new UserRequestDTO();
+        requestDTO.setEmail("same@example.com");
+        requestDTO.setName("Updated");
+
+        User existingUser = new User();
+        existingUser.setId(userId);
+        existingUser.setEmail("same@example.com");
+
+        User updatedUser = new User();
+        updatedUser.setId(userId);
+        UserResponseDTO responseDTO = new UserResponseDTO();
+        responseDTO.setId(userId);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(any(User.class))).thenReturn(updatedUser);
+        when(userMapper.toDTO(any(User.class))).thenReturn(responseDTO);
+
+        // Act
+        UserResponseDTO result = userService.updateUser(userId, requestDTO);
+
+        // Assert
+        assertNotNull(result);
+        verify(userRepository, never()).existsByEmail(anyString());
+        verify(userRepository).save(existingUser);
+    }
+
+    @Test
+    void deleteUser_ShouldDeleteUser_WhenUserExists() {
+        // Arrange
+        Long userId = 1L;
+        User user = new User();
+        user.setId(userId);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        // Act
+        userService.deleteUser(userId);
+
+        // Assert
+        verify(userRepository).findById(userId);
+        verify(userRepository).deleteById(userId);
+    }
+
+    @Test
+    void deleteUser_ShouldThrowUserNotFoundException_WhenUserNotExists() {
+        // Arrange
+        Long userId = 999L;
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(UserNotFoundException.class, () -> userService.deleteUser(userId));
+        verify(userRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void getUserCards_ShouldReturnListOfCards() {
+        // Arrange
+        Long userId = 1L;
+        User user = new User();
+        user.setId(userId);
+
+        PaymentCard card1 = new PaymentCard();
+        card1.setId(1L);
+        PaymentCard card2 = new PaymentCard();
+        card2.setId(2L);
+
+        PaymentCardResponseDTO cardDTO1 = new PaymentCardResponseDTO();
+        cardDTO1.setId(1L);
+        PaymentCardResponseDTO cardDTO2 = new PaymentCardResponseDTO();
+        cardDTO2.setId(2L);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(paymentCardRepository.findByUserId(userId)).thenReturn(List.of(card1, card2));
+        when(paymentCardMapper.toDTO(card1)).thenReturn(cardDTO1);
+        when(paymentCardMapper.toDTO(card2)).thenReturn(cardDTO2);
+
+        // Act
+        List<PaymentCardResponseDTO> result = userService.getUserCards(userId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        verify(paymentCardRepository).findByUserId(userId);
+        verify(paymentCardMapper, times(2)).toDTO(any(PaymentCard.class));
+    }
+
+    @Test
+    void getUserCards_ShouldReturnEmptyList_WhenUserHasNoCards() {
+        // Arrange
+        Long userId = 1L;
+        User user = new User();
+        user.setId(userId);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(paymentCardRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
+
+        // Act
+        List<PaymentCardResponseDTO> result = userService.getUserCards(userId);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(paymentCardRepository).findByUserId(userId);
+        verify(paymentCardMapper, never()).toDTO(any(PaymentCard.class));
+    }
+
+    @Test
+    void getUserByEmail_ShouldReturnUser_WhenEmailExists() {
+        // Arrange
+        String email = "test@example.com";
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(email);
+        UserResponseDTO responseDTO = new UserResponseDTO();
+        responseDTO.setId(1L);
+        responseDTO.setEmail(email);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(userMapper.toDTO(user)).thenReturn(responseDTO);
+
+        // Act
+        Optional<UserResponseDTO> result = userService.getUserByEmail(email);
+
+        // Assert
+        assertTrue(result.isPresent());
+        assertEquals(email, result.get().getEmail());
+        verify(userRepository).findByEmail(email);
+    }
+
+    @Test
+    void getUserByEmail_ShouldReturnEmpty_WhenEmailNotExists() {
+        // Arrange
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // Act
+        Optional<UserResponseDTO> result = userService.getUserByEmail(email);
+
+        // Assert
+        assertTrue(result.isEmpty());
+        verify(userRepository).findByEmail(email);
+        verify(userMapper, never()).toDTO(any(User.class));
+    }
+
+    @Test
+    void getActiveUsers_ShouldReturnPageOfActiveUsers() {
+        // Arrange
+        Pageable pageable = Pageable.unpaged();
+        User user = new User();
+        UserResponseDTO responseDTO = new UserResponseDTO();
+        Page<User> userPage = new PageImpl<>(List.of(user));
+
+        when(userRepository.findByActiveTrue(pageable)).thenReturn(userPage);
+        when(userMapper.toDTO(any(User.class))).thenReturn(responseDTO);
+
+        // Act
+        Page<UserResponseDTO> result = userService.getActiveUsers(pageable);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(userRepository).findByActiveTrue(pageable);
     }
 }
