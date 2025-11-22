@@ -20,7 +20,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for SonarQube analysis
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -214,9 +214,10 @@ jobs:
           ./gradlew build sonar --info
 
       - name: Wait for SonarQube analysis to complete
-        uses: sonarsource/sonarqube-quality-gate-action@v1.0.1
+        uses: sonarsource/sonarqube-quality-gate-action@v1.2.0
         with:
           sonar-token: ${{ secrets.SONAR_TOKEN }}
+          wait-for-quality-gate: true
           timeout-minutes: 5
 
   docker-build:
@@ -280,6 +281,19 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       - name: Run OWASP Dependency Check
         run: ./gradlew dependencyCheckAnalyze
