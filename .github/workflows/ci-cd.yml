@@ -1,18 +1,64 @@
-name: CI/CD Pipeline
+name: CI Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, feature/*]
   pull_request:
     branches: [main]
 
 env:
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  DOCKER_IMAGE: user-service
+  SONAR_PROJECT_KEY: UserService
 
 jobs:
-  test:
-    name: Build and Test
+  build:
+    name: Build Application
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for SonarQube analysis
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build application
+        run: ./gradlew build -x test
+
+      - name: List build artifacts
+        run: ls -la build/libs/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: application-jar
+          path: build/libs/*.jar
+          retention-days: 7
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: build
 
     services:
       postgres:
@@ -25,7 +71,7 @@ jobs:
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 5432:5432
 
@@ -35,7 +81,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 6379:6379
 
@@ -50,11 +96,21 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build and test with Gradle
-        run: ./gradlew build
+      - name: Run tests with coverage
+        run: ./gradlew test jacocoTestReport
         env:
           SPRING_PROFILES_ACTIVE: test
           DB_HOST: localhost
@@ -65,11 +121,106 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
 
-  docker:
-    name: Build Docker Image
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: |
+            build/reports/tests/
+            build/reports/jacoco/
+          retention-days: 7
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverage-reports
+          path: build/reports/jacoco/
+          retention-days: 7
+
+  code-analysis:
+    name: Code Analysis with SonarQube
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build and run SonarQube analysis
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: testdb
+          DB_USERNAME: test
+          DB_PASSWORD: test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          ./gradlew build sonar --info
+
+      - name: Wait for SonarQube analysis to complete
+        uses: sonarsource/sonarqube-quality-gate-action@v1.0.1
+        with:
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
+          timeout-minutes: 5
+
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, code-analysis]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     steps:
       - name: Checkout code
@@ -78,55 +229,85 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify Docker image
         run: |
-          docker build -t user-service:${{ github.sha }} .
+          docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${GITHUB_SHA:0:7}
           docker images
 
-      - name: Test Docker image
-        run: |
-            # Создаем тестовую сеть
-            docker network create test-network
-            
-            # Запускаем PostgreSQL
-            docker run -d --name test-postgres --network test-network \
-              -e POSTGRES_DB=testdb -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test \
-              -p 5432:5432 postgres:15-alpine
-            
-            # Запускаем Redis
-            docker run -d --name test-redis --network test-network \
-              -p 6379:6379 redis:7-alpine
-            
-            # Ждем готовности сервисов
-            sleep 20
-            
-            # Запускаем наше приложение
-            docker run -d --name test-app --network test-network \
-              -e SPRING_PROFILES_ACTIVE=test \
-              -e DB_HOST=test-postgres \
-              -e DB_PORT=5432 \
-              -e DB_NAME=testdb \
-              -e DB_USERNAME=test \
-              -e DB_PASSWORD=test \
-              -e REDIS_HOST=test-redis \
-              -e REDIS_PORT=6379 \
-              -p 8080:8080 \
-              user-service:${{ github.sha }}
-            
-            # Ждем запуска приложения
-            sleep 30
-            
-            # Проверяем логи
-            docker logs test-app
-            
-            # Проверяем health endpoint
-            curl -f http://localhost:8080/actuator/health || echo "Health check failed"
-            
-            # Останавливаем и чистим
-            docker stop test-app test-postgres test-redis
-            docker rm test-app test-postgres test-redis
-            docker network rm test-network
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
 
-      - name: Push to Registry
-        if: success()
-        run: echo "Docker image built successfully - ${{ github.sha }}"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Run OWASP Dependency Check
+        run: ./gradlew dependencyCheckAnalyze
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-report
+          path: build/reports/dependency-check-report.html
+          retention-days: 30
+
+  summary:
+    name: Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [build, test, code-analysis, docker-build, security-scan]
+    if: always()
+
+    steps:
+      - name: Pipeline Status
+        run: |
+          echo "CI Pipeline Completed"
+          echo "Build: ${{ needs.build.result }}"
+          echo "Tests: ${{ needs.test.result }}"
+          echo "Code Analysis: ${{ needs.code-analysis.result }}"
+          echo "Docker Build: ${{ needs.docker-build.result }}"
+          echo "Security Scan: ${{ needs.security-scan.result }}"
+          
+          if [[ "${{ needs.build.result }}" == "success" && "${{ needs.test.result }}" == "success" ]]; then
+            echo "All critical steps passed!"
+          else
+            echo "Some steps failed. Check the logs above."
+            exit 1
+          fi
