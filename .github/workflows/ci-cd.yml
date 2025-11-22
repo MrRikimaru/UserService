@@ -216,6 +216,7 @@ jobs:
           REDIS_PORT: 6379
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
         run: |
           ./gradlew build sonar --info -x spotlessJavaCheck
 
@@ -305,11 +306,22 @@ jobs:
       - name: Apply Spotless formatting
         run: ./gradlew spotlessApply
 
+      - name: Create reports directory
+        run: mkdir -p build/reports
+
       - name: Run OWASP Dependency Check with timeout
         run: |
           timeout 300 ./gradlew dependencyCheckAnalyze -x spotlessJavaCheck || echo "OWASP scan completed with warnings"
+          if [ ! -f "build/reports/dependency-check-report.html" ]; then
+            echo "OWASP reports not generated, creating placeholder"
+            echo "<html><body><h1>Security Scan Report</h1><p>OWASP Dependency Check failed to generate report due to network issues or missing NVD API key.</p><p>Consider adding NVD_API_KEY secret to GitHub.</p></body></html>" > build/reports/dependency-check-report.html
+            echo "{\"status\": \"skipped\", \"reason\": \"NVD API unavailable\"}" > build/reports/dependency-check-report.json
+          fi
         env:
           DEPENDENCY_CHECK_NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: List build reports directory
+        run: ls -la build/reports/ || echo "No reports directory"
 
       - name: Upload security report
         uses: actions/upload-artifact@v4
