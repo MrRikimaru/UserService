@@ -6,11 +6,13 @@ import com.example.userservice.dto.UserResponseDTO;
 import com.example.userservice.dto.UserWithCardsResponseDTO;
 import com.example.userservice.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -19,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Validated
 public class UserController {
     private final UserService userService;
 
@@ -29,7 +32,8 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> getUserById(
+            @PathVariable @Positive(message = "User ID must be positive") Long id) {
         UserResponseDTO user = userService.getUserById(id);
         return ResponseEntity.ok(user);
     }
@@ -69,33 +73,44 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> updateUser(
-            @PathVariable Long id,
+            @PathVariable @Positive(message = "User ID must be positive") Long id,
             @Valid @RequestBody UserRequestDTO userRequestDTO) {
         UserResponseDTO updatedUser = userService.updateUser(id, userRequestDTO);
         return ResponseEntity.ok(updatedUser);
     }
 
     @GetMapping("/{id}/with-cards")
-    public ResponseEntity<UserWithCardsResponseDTO> getUserWithCardsById(@PathVariable Long id) {
+    public ResponseEntity<UserWithCardsResponseDTO> getUserWithCardsById(
+            @PathVariable @Positive(message = "User ID must be positive") Long id) {
         UserWithCardsResponseDTO userWithCards = userService.getUserWithCardsById(id);
         return ResponseEntity.ok(userWithCards);
     }
 
     @PatchMapping("/{id}/activate")
-    public ResponseEntity<Void> activateUser(@PathVariable Long id) {
+    public ResponseEntity<Void> activateUser(
+            @PathVariable @Positive(message = "User ID must be positive") Long id) {
         userService.activateUser(id);
         return ResponseEntity.ok().build();
     }
 
     @PatchMapping("/{id}/deactivate")
-    public ResponseEntity<Void> deactivateUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deactivateUser(
+            @PathVariable @Positive(message = "User ID must be positive") Long id) {
         userService.deactivateUser(id);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{userId}/cards")
-    public ResponseEntity<List<PaymentCardResponseDTO>> getUserCards(@PathVariable Long userId) {
+    public ResponseEntity<List<PaymentCardResponseDTO>> getUserCards(
+            @PathVariable @Positive(message = "User ID must be positive") Long userId) {
         List<PaymentCardResponseDTO> cards = userService.getUserCards(userId);
         return ResponseEntity.ok(cards);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable @Positive(message = "User ID must be positive") Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 }

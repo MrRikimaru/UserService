@@ -179,4 +179,201 @@ class PaymentCardControllerIntegrationTest extends AbstractIntegrationTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
     }
+
+    @Test
+    void deactivateCard_ShouldDeactivateCard() {
+        // Arrange - создаем активную карту
+        PaymentCardRequestDTO createRequest = new PaymentCardRequestDTO();
+        createRequest.setNumber("8111111111111111");
+        createRequest.setHolder("DEACTIVATE TEST");
+        createRequest.setExpirationDate(LocalDate.now().plusYears(2));
+        createRequest.setActive(true);
+
+        ResponseEntity<PaymentCardResponseDTO> createResponse = restTemplate.postForEntity(
+                "/api/payment-cards/user/" + userId, createRequest, PaymentCardResponseDTO.class);
+        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        Long cardId = createResponse.getBody().getId();
+
+        // Act
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/payment-cards/" + cardId + "/deactivate",
+                HttpMethod.PATCH,
+                null,
+                Void.class);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // Verify card is deactivated
+        ResponseEntity<PaymentCardResponseDTO> getResponse = restTemplate.getForEntity(
+                "/api/payment-cards/" + cardId, PaymentCardResponseDTO.class);
+        assertEquals(HttpStatus.OK, getResponse.getStatusCode());
+        assertFalse(getResponse.getBody().getActive());
+    }
+
+    @Test
+    void deleteCard_ShouldDeleteCard() {
+        // Arrange - создаем карту
+        PaymentCardRequestDTO createRequest = new PaymentCardRequestDTO();
+        createRequest.setNumber("9111111111111111");
+        createRequest.setHolder("DELETE TEST");
+        createRequest.setExpirationDate(LocalDate.now().plusYears(2));
+
+        ResponseEntity<PaymentCardResponseDTO> createResponse = restTemplate.postForEntity(
+                "/api/payment-cards/user/" + userId, createRequest, PaymentCardResponseDTO.class);
+        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        Long cardId = createResponse.getBody().getId();
+
+        // Act
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/payment-cards/" + cardId,
+                HttpMethod.DELETE,
+                null,
+                Void.class);
+
+        // Assert
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        // Verify card is deleted
+        ResponseEntity<String> getResponse = restTemplate.getForEntity(
+                "/api/payment-cards/" + cardId, String.class);
+        assertEquals(HttpStatus.NOT_FOUND, getResponse.getStatusCode());
+    }
+
+    @Test
+    void updateCard_ShouldReturnUpdatedCard() {
+        // Arrange - создаем карту
+        PaymentCardRequestDTO createRequest = new PaymentCardRequestDTO();
+        createRequest.setNumber("1011111111111111");
+        createRequest.setHolder("ORIGINAL HOLDER");
+        createRequest.setExpirationDate(LocalDate.now().plusYears(2));
+
+        ResponseEntity<PaymentCardResponseDTO> createResponse = restTemplate.postForEntity(
+                "/api/payment-cards/user/" + userId, createRequest, PaymentCardResponseDTO.class);
+        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        Long cardId = createResponse.getBody().getId();
+
+        // Prepare update request
+        PaymentCardRequestDTO updateRequest = new PaymentCardRequestDTO();
+        updateRequest.setNumber("1011111111111111");
+        updateRequest.setHolder("UPDATED HOLDER");
+        updateRequest.setExpirationDate(LocalDate.now().plusYears(3));
+
+        // Act
+        ResponseEntity<PaymentCardResponseDTO> response = restTemplate.exchange(
+                "/api/payment-cards/" + cardId,
+                HttpMethod.PUT,
+                new HttpEntity<>(updateRequest),
+                PaymentCardResponseDTO.class);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("UPDATED HOLDER", response.getBody().getHolder());
+    }
+
+    @Test
+    void getCardByNumber_ShouldReturnCard() {
+        // Arrange - создаем карту
+        String cardNumber = "1211111111111111";
+        PaymentCardRequestDTO createRequest = new PaymentCardRequestDTO();
+        createRequest.setNumber(cardNumber);
+        createRequest.setHolder("NUMBER TEST");
+        createRequest.setExpirationDate(LocalDate.now().plusYears(2));
+
+        ResponseEntity<PaymentCardResponseDTO> createResponse = restTemplate.postForEntity(
+                "/api/payment-cards/user/" + userId, createRequest, PaymentCardResponseDTO.class);
+        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+
+        // Act
+        ResponseEntity<PaymentCardResponseDTO> response = restTemplate.getForEntity(
+                "/api/payment-cards/number/" + cardNumber, PaymentCardResponseDTO.class);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(cardNumber, response.getBody().getNumber());
+    }
+
+    @Test
+    void getCardByUserAndId_ShouldReturnCard() {
+        // Arrange - создаем карту
+        PaymentCardRequestDTO createRequest = new PaymentCardRequestDTO();
+        createRequest.setNumber("1311111111111111");
+        createRequest.setHolder("USER CARD TEST");
+        createRequest.setExpirationDate(LocalDate.now().plusYears(2));
+
+        ResponseEntity<PaymentCardResponseDTO> createResponse = restTemplate.postForEntity(
+                "/api/payment-cards/user/" + userId, createRequest, PaymentCardResponseDTO.class);
+        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        Long cardId = createResponse.getBody().getId();
+
+        // Act
+        ResponseEntity<PaymentCardResponseDTO> response = restTemplate.getForEntity(
+                "/api/payment-cards/user/" + userId + "/card/" + cardId, PaymentCardResponseDTO.class);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(cardId, response.getBody().getId());
+    }
+
+    @Test
+    void createCard_ShouldReturnBadRequest_WhenExpirationDateInPast() {
+        // Arrange
+        PaymentCardRequestDTO requestDTO = new PaymentCardRequestDTO();
+        requestDTO.setNumber("1411111111111111");
+        requestDTO.setHolder("EXPIRED CARD");
+        requestDTO.setExpirationDate(LocalDate.now().minusDays(1)); // Past date
+
+        // Act
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/payment-cards/user/" + userId, requestDTO, String.class);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void createCard_ShouldReturnBadRequest_WhenCardNumberInvalid() {
+        // Arrange
+        PaymentCardRequestDTO requestDTO = new PaymentCardRequestDTO();
+        requestDTO.setNumber("123"); // Too short
+        requestDTO.setHolder("INVALID CARD");
+        requestDTO.setExpirationDate(LocalDate.now().plusYears(2));
+
+        // Act
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/payment-cards/user/" + userId, requestDTO, String.class);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void getActiveCardsByUserId_ShouldReturnOnlyActiveCards() {
+        // Arrange - создаем активную и неактивную карты
+        PaymentCardRequestDTO activeCard = new PaymentCardRequestDTO();
+        activeCard.setNumber("1511111111111111");
+        activeCard.setHolder("ACTIVE CARD");
+        activeCard.setExpirationDate(LocalDate.now().plusYears(2));
+        activeCard.setActive(true);
+
+        PaymentCardRequestDTO inactiveCard = new PaymentCardRequestDTO();
+        inactiveCard.setNumber("1611111111111111");
+        inactiveCard.setHolder("INACTIVE CARD");
+        inactiveCard.setExpirationDate(LocalDate.now().plusYears(2));
+        inactiveCard.setActive(false);
+
+        restTemplate.postForEntity("/api/payment-cards/user/" + userId, activeCard, PaymentCardResponseDTO.class);
+        restTemplate.postForEntity("/api/payment-cards/user/" + userId, inactiveCard, PaymentCardResponseDTO.class);
+
+        // Act
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                "/api/payment-cards/user/" + userId + "/active?page=0&size=10", String.class);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+    }
 }

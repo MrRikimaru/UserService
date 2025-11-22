@@ -1,5 +1,6 @@
 package com.example.userservice.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -100,6 +101,24 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException ex) {
+        log.warn("Constraint violation: {}", ex.getMessage());
+
+        // Извлекаем первое сообщение об ошибке
+        String errorMessage = ex.getConstraintViolations().stream()
+                .findFirst()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                .orElse("Validation failed");
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                errorMessage,
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);

@@ -2,27 +2,27 @@ package com.example.userservice.integration;
 
 import com.example.userservice.dto.UserRequestDTO;
 import com.example.userservice.dto.UserResponseDTO;
+import com.example.userservice.repository.UserRepository;
 import com.example.userservice.service.CacheService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@AutoConfigureMockMvc
 class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private MockMvc mockMvc;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -30,10 +30,14 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private CacheService cacheService;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @BeforeEach
     void setUp() {
-        // Очищаем кэш перед каждым тестом
+        // Очищаем кэш и базу данных перед каждым тестом
         cacheService.evictAllUserCaches();
+        userRepository.deleteAll();
     }
 
     private String generateUniqueEmail() {
@@ -41,7 +45,6 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @Order(1)
     void createUser_ShouldReturnCreatedUser_WhenValidInput() throws Exception {
         // Arrange
         UserRequestDTO requestDTO = new UserRequestDTO();
@@ -50,22 +53,18 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
         requestDTO.setEmail(generateUniqueEmail());
         requestDTO.setBirthDate(LocalDate.of(1990, 1, 1));
 
-        // Act
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/users", requestDTO, String.class);
-
-        // Assert
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertNotNull(response.getBody());
-
-        UserResponseDTO responseBody = objectMapper.readValue(response.getBody(), UserResponseDTO.class);
-        assertNotNull(responseBody);
-        assertEquals("Integration", responseBody.getName());
-        assertEquals("Test", responseBody.getSurname());
+        // Act & Assert
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDTO)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.name").value("Integration"))
+                .andExpect(jsonPath("$.surname").value("Test"))
+                .andExpect(jsonPath("$.email").exists());
     }
 
     @Test
-    @Order(2)
     void getUserById_ShouldReturnUser_WhenUserExists() throws Exception {
         // Arrange - сначала создаем пользователя
         UserRequestDTO createRequest = new UserRequestDTO();
@@ -73,38 +72,27 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
         createRequest.setSurname("User");
         createRequest.setEmail(generateUniqueEmail());
 
-        ResponseEntity<String> createResponse = restTemplate.postForEntity(
-                "/api/users", createRequest, String.class);
-        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        String createResponse = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
-        UserResponseDTO createdUser = objectMapper.readValue(createResponse.getBody(), UserResponseDTO.class);
+        UserResponseDTO createdUser = objectMapper.readValue(createResponse, UserResponseDTO.class);
         Long userId = createdUser.getId();
 
-        // Act
-        ResponseEntity<String> response = restTemplate.getForEntity(
-                "/api/users/" + userId, String.class);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        UserResponseDTO responseBody = objectMapper.readValue(response.getBody(), UserResponseDTO.class);
-        assertNotNull(responseBody);
-        assertEquals(userId, responseBody.getId());
-        assertEquals("Get", responseBody.getName());
+        // Act & Assert
+        mockMvc.perform(get("/api/users/{id}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.name").value("Get"))
+                .andExpect(jsonPath("$.surname").value("User"));
     }
 
-    @Test
-    @Order(3)
-    void getUserById_ShouldReturnNotFound_WhenUserNotExists() {
-        // Act
-        ResponseEntity<String> response = restTemplate.getForEntity(
-                "/api/users/999", String.class);
-
-        // Assert
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-    }
 
     @Test
-    @Order(4)
     void updateUser_ShouldReturnUpdatedUser_WhenValidInput() throws Exception {
         // Arrange - создаем пользователя
         UserRequestDTO createRequest = new UserRequestDTO();
@@ -112,11 +100,15 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
         createRequest.setSurname("Name");
         createRequest.setEmail(generateUniqueEmail());
 
-        ResponseEntity<String> createResponse = restTemplate.postForEntity(
-                "/api/users", createRequest, String.class);
-        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        String createResponse = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
-        UserResponseDTO createdUser = objectMapper.readValue(createResponse.getBody(), UserResponseDTO.class);
+        UserResponseDTO createdUser = objectMapper.readValue(createResponse, UserResponseDTO.class);
         Long userId = createdUser.getId();
 
         // Подготавливаем данные для обновления
@@ -125,22 +117,16 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
         updateRequest.setSurname("Name");
         updateRequest.setEmail(generateUniqueEmail());
 
-        // Act
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/users/" + userId,
-                HttpMethod.PUT,
-                new HttpEntity<>(updateRequest),
-                String.class);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        UserResponseDTO responseBody = objectMapper.readValue(response.getBody(), UserResponseDTO.class);
-        assertNotNull(responseBody);
-        assertEquals("Updated", responseBody.getName());
+        // Act & Assert
+        mockMvc.perform(put("/api/users/{id}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.name").value("Updated"));
     }
 
     @Test
-    @Order(5)
     void activateUser_ShouldActivateUser() throws Exception {
         // Arrange - создаем неактивного пользователя
         UserRequestDTO createRequest = new UserRequestDTO();
@@ -149,26 +135,23 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
         createRequest.setEmail(generateUniqueEmail());
         createRequest.setActive(false);
 
-        ResponseEntity<String> createResponse = restTemplate.postForEntity(
-                "/api/users", createRequest, String.class);
-        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        String createResponse = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
-        UserResponseDTO createdUser = objectMapper.readValue(createResponse.getBody(), UserResponseDTO.class);
+        UserResponseDTO createdUser = objectMapper.readValue(createResponse, UserResponseDTO.class);
         Long userId = createdUser.getId();
 
-        // Act
-        ResponseEntity<Void> response = restTemplate.exchange(
-                "/api/users/" + userId + "/activate",
-                HttpMethod.PATCH,
-                null,
-                Void.class);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
+        // Act & Assert
+        mockMvc.perform(patch("/api/users/{id}/activate", userId))
+                .andExpect(status().isOk());
     }
 
     @Test
-    @Order(6)
     void getAllUsers_ShouldReturnPageOfUsers() throws Exception {
         // Arrange - создаем тестового пользователя
         UserRequestDTO createRequest = new UserRequestDTO();
@@ -176,16 +159,123 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
         createRequest.setSurname("Test");
         createRequest.setEmail(generateUniqueEmail());
 
-        ResponseEntity<String> createResponse = restTemplate.postForEntity(
-                "/api/users", createRequest, String.class);
-        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated());
 
-        // Act
-        ResponseEntity<String> response = restTemplate.getForEntity(
-                "/api/users?page=0&size=10", String.class);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
+        // Act & Assert
+        mockMvc.perform(get("/api/users")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").exists());
     }
+
+    @Test
+    void deactivateUser_ShouldDeactivateUser() throws Exception {
+        // Arrange - создаем активного пользователя
+        UserRequestDTO createRequest = new UserRequestDTO();
+        createRequest.setName("Deactivate");
+        createRequest.setSurname("Test");
+        createRequest.setEmail(generateUniqueEmail());
+        createRequest.setActive(true);
+
+        String createResponse = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UserResponseDTO createdUser = objectMapper.readValue(createResponse, UserResponseDTO.class);
+        Long userId = createdUser.getId();
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/users/{id}/deactivate", userId))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deleteUser_ShouldDeleteUser() throws Exception {
+        // Arrange - создаем пользователя
+        UserRequestDTO createRequest = new UserRequestDTO();
+        createRequest.setName("Delete");
+        createRequest.setSurname("Test");
+        createRequest.setEmail(generateUniqueEmail());
+
+        String createResponse = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UserResponseDTO createdUser = objectMapper.readValue(createResponse, UserResponseDTO.class);
+        Long userId = createdUser.getId();
+
+        // Act & Assert
+        mockMvc.perform(delete("/api/users/{id}", userId))
+                .andExpect(status().isNoContent());
+
+        // Verify user is deleted
+        mockMvc.perform(get("/api/users/{id}", userId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getUserWithCardsById_ShouldReturnUserWithCards() throws Exception {
+        // Arrange - создаем пользователя
+        UserRequestDTO createRequest = new UserRequestDTO();
+        createRequest.setName("WithCards");
+        createRequest.setSurname("Test");
+        createRequest.setEmail(generateUniqueEmail());
+
+        String createResponse = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UserResponseDTO createdUser = objectMapper.readValue(createResponse, UserResponseDTO.class);
+        Long userId = createdUser.getId();
+
+        // Act & Assert
+        mockMvc.perform(get("/api/users/{id}/with-cards", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.paymentCards").isArray());
+    }
+
+    @Test
+    void getUserCards_ShouldReturnUserCards() throws Exception {
+        // Arrange - создаем пользователя
+        UserRequestDTO createRequest = new UserRequestDTO();
+        createRequest.setName("Cards");
+        createRequest.setSurname("Test");
+        createRequest.setEmail(generateUniqueEmail());
+
+        String createResponse = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UserResponseDTO createdUser = objectMapper.readValue(createResponse, UserResponseDTO.class);
+        Long userId = createdUser.getId();
+
+        // Act & Assert
+        mockMvc.perform(get("/api/users/{userId}/cards", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
+
+
 }

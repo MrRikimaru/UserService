@@ -31,7 +31,7 @@ public interface PaymentCardRepository extends JpaRepository<PaymentCard, Long>,
             nativeQuery = true)
     int countCardsByUserId(@Param("userId") Long userId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PaymentCard pc SET pc.active = :active WHERE pc.id = :id")
     void updateActiveStatus(@Param("id") Long id, @Param("active") Boolean active);
 

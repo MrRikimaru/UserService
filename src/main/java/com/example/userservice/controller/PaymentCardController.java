@@ -4,40 +4,44 @@ import com.example.userservice.dto.PaymentCardRequestDTO;
 import com.example.userservice.dto.PaymentCardResponseDTO;
 import com.example.userservice.service.PaymentCardService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/payment-cards")
 @RequiredArgsConstructor
+@Validated
 public class PaymentCardController {
     private final PaymentCardService paymentCardService;
 
     @PostMapping("/user/{userId}")
     public ResponseEntity<PaymentCardResponseDTO> createCard(
-            @PathVariable Long userId,
+            @PathVariable @Positive(message = "User ID must be positive") Long userId,
             @Valid @RequestBody PaymentCardRequestDTO cardRequestDTO) {
         PaymentCardResponseDTO createdCard = paymentCardService.createCard(cardRequestDTO, userId);
         return new ResponseEntity<>(createdCard, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PaymentCardResponseDTO> getCardById(@PathVariable Long id) {
+    public ResponseEntity<PaymentCardResponseDTO> getCardById(
+            @PathVariable @Positive(message = "Card ID must be positive") Long id) {
         PaymentCardResponseDTO card = paymentCardService.getCardById(id);
         return ResponseEntity.ok(card);
     }
 
     @GetMapping
     public ResponseEntity<Page<PaymentCardResponseDTO>> getAllCards(
-            @RequestParam(required = false) String holderName,
+            @RequestParam(required = false) String holder,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) Long userId,
             Pageable pageable) {
-        Page<PaymentCardResponseDTO> cards = paymentCardService.getAllCards(holderName, active, userId, pageable);
+        Page<PaymentCardResponseDTO> cards = paymentCardService.getAllCards(holder, active, userId, pageable);
         return ResponseEntity.ok(cards);
     }
 
@@ -49,7 +53,7 @@ public class PaymentCardController {
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<Page<PaymentCardResponseDTO>> getAllCardsByUserId(
-            @PathVariable Long userId,
+            @PathVariable @Positive(message = "User ID must be positive") Long userId,
             Pageable pageable) {
         Page<PaymentCardResponseDTO> cards = paymentCardService.getAllCardsByUserId(userId, pageable);
         return ResponseEntity.ok(cards);
@@ -57,7 +61,7 @@ public class PaymentCardController {
 
     @GetMapping("/user/{userId}/active")
     public ResponseEntity<Page<PaymentCardResponseDTO>> getActiveCardsByUserId(
-            @PathVariable Long userId,
+            @PathVariable @Positive(message = "User ID must be positive") Long userId,
             Pageable pageable) {
         Page<PaymentCardResponseDTO> cards = paymentCardService.getActiveCardsByUserId(userId, pageable);
         return ResponseEntity.ok(cards);
@@ -65,8 +69,8 @@ public class PaymentCardController {
 
     @GetMapping("/user/{userId}/card/{cardId}")
     public ResponseEntity<PaymentCardResponseDTO> getCardByUserAndId(
-            @PathVariable Long userId,
-            @PathVariable Long cardId) {
+            @PathVariable @Positive(message = "User ID must be positive") Long userId,
+            @PathVariable @Positive(message = "Card ID must be positive") Long cardId) {
         PaymentCardResponseDTO card = paymentCardService.getCardByUserAndId(userId, cardId);
         return ResponseEntity.ok(card);
     }
@@ -79,21 +83,30 @@ public class PaymentCardController {
 
     @PutMapping("/{id}")
     public ResponseEntity<PaymentCardResponseDTO> updateCard(
-            @PathVariable Long id,
+            @PathVariable @Positive(message = "Card ID must be positive") Long id,
             @Valid @RequestBody PaymentCardRequestDTO cardRequestDTO) {
         PaymentCardResponseDTO updatedCard = paymentCardService.updateCard(id, cardRequestDTO);
         return ResponseEntity.ok(updatedCard);
     }
 
     @PatchMapping("/{id}/activate")
-    public ResponseEntity<Void> activateCard(@PathVariable Long id) {
+    public ResponseEntity<Void> activateCard(
+            @PathVariable @Positive(message = "Card ID must be positive") Long id) {
         paymentCardService.activateCard(id);
         return ResponseEntity.ok().build();
     }
 
     @PatchMapping("/{id}/deactivate")
-    public ResponseEntity<Void> deactivateCard(@PathVariable Long id) {
+    public ResponseEntity<Void> deactivateCard(
+            @PathVariable @Positive(message = "Card ID must be positive") Long id) {
         paymentCardService.deactivateCard(id);
         return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCard(
+            @PathVariable @Positive(message = "Card ID must be positive") Long id) {
+        paymentCardService.deleteCard(id);
+        return ResponseEntity.noContent().build();
     }
 }

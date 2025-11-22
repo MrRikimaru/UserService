@@ -35,3 +35,108 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Environment Variables ###
+.env
+*.env
+!.env.example
+
+### Docker ###
+docker-compose.override.yml
+.docker/
+
+### Secrets ###
+secrets/
+*.key
+*.pem
+*.cert
+*.jks
+
+### Logs ###
+logs/
+*.log
+log/
+**/logs/
+
+### Application Properties ###
+**/application-local.yml
+**/application-docker.yml
+**/application-test.yml
+
+### OS generated files ###
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+### Temp files ###
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+### Test reports ###
+**/test-results/
+**/reports/
+**/build/reports/
+
+### Gradle ###
+.gradle/
+**/build/
+!src/**/build/
+
+### Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+### Package Files ###
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+### IDE ###
+**/nbproject/private/
+**/build/
+**/bin/
+**/.settings/
+**/.classpath
+**/.project
+**/.factorypath
+
+### Redis ###
+dump.rdb
+
+### PostgreSQL ###
+*.pid
+*.pid.lock
+
+### Application specific ###
+**/application-dev.yml
+**/application-prod.yml
+**/heapdump*
+**/javacore*
+**/core*
+**/snapshot*
+
+### Git ###
+*.orig
+
+### Liquibase ###
+liquibase.properties
