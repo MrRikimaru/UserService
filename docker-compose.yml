@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   user-service:
     build: .
@@ -12,12 +10,21 @@ services:
       - DB_PORT=5432
       - DB_NAME=userservice
       - DB_USERNAME=postgres
-      - DB_PASSWORD=${DB_PASSWORD:-secure_password_123}
+      - DB_PASSWORD=root
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redispassword123
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 80s
     networks:
       - user-service-network
 
@@ -27,22 +34,32 @@ services:
     environment:
       - POSTGRES_DB=userservice
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-secure_password_123}
-      - POSTGRES_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-root_secure_password_123}
+      - POSTGRES_PASSWORD=root
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/changelog:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - user-service-network
 
   redis:
     image: redis:7-alpine
     container_name: redis-cache
-    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secure_password_123}
+    command: redis-server --requirepass redispassword123
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redispassword123", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     networks:
       - user-service-network
 

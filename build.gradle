@@ -2,7 +2,9 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.7'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.owasp.dependencycheck' version '9.0.9'
 	id 'org.sonarqube' version '4.4.1.3373'
+	id 'com.diffplug.spotless' version '6.25.0'
 	id 'jacoco'
 }
 
@@ -70,6 +72,7 @@ dependencies {
 	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
 
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
 dependencyManagement {
@@ -144,6 +147,22 @@ sonarqube {
 	}
 }
 
+spotless {
+	java {
+		target 'src/**/*.java'
+		googleJavaFormat()
+		removeUnusedImports()
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+}
+
+dependencyCheck {
+	formats = ['HTML', 'JSON']
+	failBuildOnCVSS = 7
+	suppressionFile = 'config/dependency-check-suppressions.xml'
+}
+
 check.dependsOn jacocoTestCoverageVerification
 
 compileJava {
@@ -165,4 +184,13 @@ tasks.register('sonarAnalysis') {
 	doLast {
 		println "SonarQube analysis completed"
 	}
+}
+
+bootJar {
+	archiveFileName = 'app.jar'
+	enabled = true
+}
+
+jar {
+	enabled = false
 }

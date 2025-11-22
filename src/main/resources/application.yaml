@@ -4,10 +4,14 @@ spring:
   profiles:
     active: local
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driverClassName: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:userservice}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:changeme123}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 60000
+      maximum-pool-size: 5
+      initialization-fail-timeout: 60000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -20,18 +24,17 @@ spring:
     enabled: true
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 60000
-      connect-timeout: 10000
       lettuce:
         pool:
           enabled: true
           max-active: 8
           max-idle: 8
           min-idle: 0
-          max-wait: -1ms
   cache:
     type: redis
     redis:
@@ -48,3 +51,6 @@ management:
     web:
       exposure:
         include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

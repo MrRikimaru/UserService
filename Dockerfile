@@ -1,19 +1,19 @@
-FROM eclipse-temurin:21-jre as builder
-WORKDIR /app
-ARG JAR_FILE=build/libs/*.jar
-COPY ${JAR_FILE} app.jar
-RUN java -Djarmode=tools -jar app.jar extract --layers --destination extracted
+# Build stage
+FROM eclipse-temurin:21-jdk AS builder
+WORKDIR /workspace/app
 
+COPY . .
+RUN chmod +x ./gradlew
+RUN ./gradlew clean build -x test
+
+# Production stage
 FROM eclipse-temurin:21-jre
 RUN addgroup --system spring && adduser --system --group spring
 USER spring:spring
 
 WORKDIR /app
-COPY --from=builder /app/extracted/dependencies/ ./
-COPY --from=builder /app/extracted/spring-boot-loader/ ./
-COPY --from=builder /app/extracted/snapshot-dependencies/ ./
-COPY --from=builder /app/extracted/application/ ./
+COPY --from=builder /workspace/app/build/libs/*.jar app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
