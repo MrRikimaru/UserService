@@ -214,11 +214,11 @@ jobs:
           DB_PASSWORD: test
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
         run: |
           ./gradlew build sonar --info -x spotlessJavaCheck
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
       - name: Wait for SonarQube analysis to complete
         uses: sonarsource/sonarqube-quality-gate-action@v1.2.0
