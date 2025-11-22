@@ -9,11 +9,11 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface UserMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "paymentCards", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    User toEntity(UserRequestDTO userRequestDTO);
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "paymentCards", ignore = true)
+  @Mapping(target = "createdAt", ignore = true)
+  @Mapping(target = "updatedAt", ignore = true)
+  User toEntity(UserRequestDTO userRequestDTO);
 
-    UserResponseDTO toDTO(User user);
+  UserResponseDTO toDTO(User user);
 }

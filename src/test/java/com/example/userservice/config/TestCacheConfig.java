@@ -11,9 +11,9 @@ import org.springframework.context.annotation.Profile;
 @Profile("test")
 public class TestCacheConfig {
 
-    @Bean
-    @Primary
-    public CacheManager testCacheManager() {
-        return new ConcurrentMapCacheManager("users", "usersWithCards", "userCards");
-    }
+  @Bean
+  @Primary
+  public CacheManager testCacheManager() {
+    return new ConcurrentMapCacheManager("users", "usersWithCards", "userCards");
+  }
 }
