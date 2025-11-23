@@ -9,7 +9,6 @@ on:
 env:
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
   DOCKER_IMAGE: user-service
-  SONAR_PROJECT_KEY: UserService
 
 jobs:
   build:
@@ -46,7 +45,7 @@ jobs:
         run: ./gradlew spotlessApply
 
       - name: Build application
-        run: ./gradlew build -x test -x spotlessJavaCheck
+        run: ./gradlew build -x test
 
       - name: List build artifacts
         run: ls -la build/libs/
@@ -116,7 +115,7 @@ jobs:
         run: ./gradlew spotlessApply
 
       - name: Run tests with coverage
-        run: ./gradlew test jacocoTestReport -x spotlessJavaCheck
+        run: ./gradlew test jacocoTestReport
         env:
           SPRING_PROFILES_ACTIVE: test
           DB_HOST: localhost
@@ -144,16 +143,6 @@ jobs:
           name: coverage-reports
           path: build/reports/jacoco/
           retention-days: 7
-
-  code-analysis:
-    name: Code Analysis with SonarQube
-    runs-on: ubuntu-latest
-    needs: test
-    if: false
-
-    steps:
-      - name: Skip SonarQube analysis
-        run: echo "SonarQube analysis temporarily disabled - create project in SonarCloud first"
 
   docker-build:
     name: Build Docker Image
@@ -231,15 +220,9 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Apply Spotless formatting
-        run: ./gradlew spotlessApply
-
-      - name: Create reports directory
-        run: mkdir -p build/reports
-
       - name: Run OWASP Dependency Check with timeout
         run: |
-          timeout 300 ./gradlew dependencyCheckAnalyze -x spotlessJavaCheck || echo "OWASP scan completed with warnings"
+          timeout 300 ./gradlew dependencyCheckAnalyze || echo "OWASP scan completed with warnings"
           if [ ! -f "build/reports/dependency-check-report.html" ]; then
             echo "OWASP reports not generated, creating placeholder"
             echo "<html><body><h1>Security Scan Report</h1><p>OWASP Dependency Check failed to generate report due to network issues or missing NVD API key.</p><p>Consider adding NVD_API_KEY secret to GitHub.</p></body></html>" > build/reports/dependency-check-report.html
@@ -247,9 +230,6 @@ jobs:
           fi
         env:
           DEPENDENCY_CHECK_NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-
-      - name: List build reports directory
-        run: ls -la build/reports/ || echo "No reports directory"
 
       - name: Upload security report
         uses: actions/upload-artifact@v4
