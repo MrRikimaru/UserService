@@ -126,19 +126,7 @@ jacocoTestCoverageVerification {
 				minimum = 0.6
 			}
 		}
-		rule {
-			enabled = false
-			element = 'CLASS'
-			includes = ['com.example.*']
-			limit {
-				counter = 'LINE'
-				value = 'COVEREDRATIO'
-				minimum = 0.6
-			}
-		}
 	}
-
-	ignoreFailures = true
 }
 
 sonarqube {
@@ -158,10 +146,13 @@ sonarqube {
 		property "sonar.java.test.binaries", "build/classes/java/test"
 		property "sonar.tests", "src/test"
 		property "sonar.scm.provider", "git"
+		property "sonar.gradle.skipCompile", "true"
 	}
 }
 
-tasks.named('sonar').configure {
+tasks.named('sonar') {
+	dependsOn jacocoTestReport
+	mustRunAfter test
 	doFirst {
 		if (!System.getenv('SONAR_HOST_URL') || !System.getenv('SONAR_TOKEN')) {
 			throw new GradleException('Конфигурация SonarQube отсутствует. Установите переменные окружения SONAR_HOST_URL и SONAR_TOKEN.')
@@ -184,8 +175,6 @@ dependencyCheck {
 	failBuildOnCVSS = 7
 	suppressionFile = 'config/dependency-check-suppressions.xml'
 }
-
-check.dependsOn jacocoTestCoverageVerification
 
 compileJava {
 	options.compilerArgs = [

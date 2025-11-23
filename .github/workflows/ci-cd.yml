@@ -217,7 +217,9 @@ jobs:
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./gradlew build sonar --info -x spotlessJavaCheck
+        run: |
+          ./gradlew build -x test -x spotlessJavaCheck
+          ./gradlew sonar --info
 
       - name: Wait for SonarQube analysis to complete
         uses: sonarsource/sonarqube-quality-gate-action@v1.2.0
