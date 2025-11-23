@@ -72,8 +72,8 @@ jobs:
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+          --health-timeout 10s
+          --health-retries 15
         ports:
           - 5432:5432
 
@@ -82,8 +82,8 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+          --health-timeout 10s
+          --health-retries 15
         ports:
           - 6379:6379
 
@@ -111,11 +111,31 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Set up TestContainers environment
+        run: |
+          echo "TESTCONTAINERS_RYUK_DISABLED=true" >> $GITHUB_ENV
+          echo "TESTCONTAINERS_CHECKS_DISABLE=true" >> $GITHUB_ENV
+
       - name: Apply Spotless formatting
         run: ./gradlew spotlessApply
 
-      - name: Run tests with coverage
-        run: ./gradlew test jacocoTestReport
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for PostgreSQL..."
+          until pg_isready -h localhost -p 5432; do
+            sleep 1
+          done
+          echo "PostgreSQL is ready!"
+          
+          echo "Waiting for Redis..."
+          until redis-cli -h localhost -p 6379 ping | grep -q "PONG"; do
+            sleep 1
+          done
+          echo "Redis is ready!"
+
+      - name: Run tests with detailed output
+        run: |
+          ./gradlew test jacocoTestReport --info --stacktrace
         env:
           SPRING_PROFILES_ACTIVE: test
           DB_HOST: localhost
@@ -125,6 +145,19 @@ jobs:
           DB_PASSWORD: test
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+          TESTCONTAINERS_RYUK_DISABLED: true
+          TESTCONTAINERS_CHECKS_DISABLE: true
+
+      - name: Print failed test details
+        if: failure()
+        run: |
+          echo "=== FAILED TESTS DETAILS ==="
+          find build/test-results -name "*.xml" -exec grep -l "failure" {} \; | xargs cat | grep -A 10 -B 5 "failure" || true
+          
+          echo "=== TEST SUMMARY ==="
+          if [ -f "build/reports/tests/test/index.html" ]; then
+            grep -oE "tests failed.*|Failures:.*" build/reports/tests/test/index.html || true
+          fi
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -133,7 +166,7 @@ jobs:
           name: test-results
           path: |
             build/reports/tests/
-            build/reports/jacoco/
+            build/test-results/
           retention-days: 7
 
       - name: Upload coverage reports
