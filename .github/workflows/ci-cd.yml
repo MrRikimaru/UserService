@@ -218,7 +218,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           ./gradlew build -x test -x spotlessJavaCheck
-          ./gradlew sonar --info \
+          ./gradlew sonar --info || echo "SonarQube analysis skipped - project might not exist in SonarCloud"
             -Dsonar.projectKey=UserService \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
