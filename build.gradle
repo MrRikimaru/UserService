@@ -147,6 +147,12 @@ sonarqube {
 		property "sonar.tests", "src/test"
 		property "sonar.scm.provider", "git"
 		property "sonar.gradle.skipCompile", "true"
+
+		property "sonar.projectDescription", "User Service Application"
+		property "sonar.links.homepage", "https://github.com/${System.getenv('GITHUB_REPOSITORY')}"
+		property "sonar.links.scm", "https://github.com/${System.getenv('GITHUB_REPOSITORY')}.git"
+
+		property "sonar.branch.name", System.getenv('GITHUB_REF_NAME') ?: 'dev'
 	}
 }
 
