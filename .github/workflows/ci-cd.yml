@@ -140,7 +140,14 @@ jobs:
 
       - name: Run tests with detailed output
         run: |
-          ./gradlew test jacocoTestReport --info --stacktrace
+          ./gradlew test jacocoTestReport \
+            --info \
+            --stacktrace \
+            --no-daemon \
+            -Dorg.gradle.test.worker.max=2 \
+            -Dorg.gradle.parallel=true \
+            -Dtestcontainers.reuse.enable=true \
+            -Dtestcontainers.ryuk.disabled=true
         env:
           SPRING_PROFILES_ACTIVE: test
           DB_HOST: localhost
@@ -152,6 +159,7 @@ jobs:
           REDIS_PORT: 6379
           TESTCONTAINERS_RYUK_DISABLED: true
           TESTCONTAINERS_CHECKS_DISABLE: true
+          GRADLE_OPTS: "-Xmx2g -XX:MaxMetaspaceSize=1g"
 
       - name: Print failed test details
         if: failure()

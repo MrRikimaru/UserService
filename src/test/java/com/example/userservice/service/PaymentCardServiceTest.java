@@ -16,7 +16,8 @@ import com.example.userservice.repository.PaymentCardRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -27,7 +28,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PaymentCardServiceTest {
+  @BeforeEach
+  void setUp() {
+    reset(paymentCardRepository, userService, paymentCardMapper, cacheService);
+  }
+
+  @AfterEach
+  void tearDown() {
+  }
 
   @Mock private PaymentCardRepository paymentCardRepository;
 
@@ -329,6 +339,7 @@ class PaymentCardServiceTest {
   }
 
   @Test
+  @Timeout(2)
   void updateCard_ShouldThrowIllegalArgumentException_WhenExpirationDateInPast() {
     // Arrange
     Long cardId = 1L;
