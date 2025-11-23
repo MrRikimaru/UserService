@@ -138,7 +138,7 @@ jobs:
           sleep 5
           echo "Services are ready!"
 
-      - name: Run tests with detailed output
+      - name: Run tests with detailed output info
         run: |
           ./gradlew test jacocoTestReport \
             --info \
