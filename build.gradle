@@ -91,6 +91,12 @@ test {
 	maxParallelForks = 1
 	forkEvery = 1
 	finalizedBy jacocoTestReport
+
+	jvmArgs = [
+			"-javaagent:${configurations.testRuntimeClasspath.find { it.name.contains("byte-buddy-agent") }.absolutePath}"
+	]
+
+	finalizedBy jacocoTestReport
 }
 
 jacoco {

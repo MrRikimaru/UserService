@@ -17,28 +17,30 @@ import org.testcontainers.utility.DockerImageName;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public abstract class AbstractIntegrationTest {
 
-    @Container
-    static PostgreSQLContainer<?> postgresqlContainer = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("testdb")
-            .withUsername("test")
-            .withPassword("test")
-            .withReuse(true);
+  @Container
+  static PostgreSQLContainer<?> postgresqlContainer =
+      new PostgreSQLContainer<>("postgres:15-alpine")
+          .withDatabaseName("testdb")
+          .withUsername("test")
+          .withPassword("test")
+          .withReuse(true);
 
-    @Container
-    static GenericContainer<?> redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379)
-            .withReuse(true);
+  @Container
+  static GenericContainer<?> redisContainer =
+      new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+          .withExposedPorts(6379)
+          .withReuse(true);
 
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgresqlContainer::getJdbcUrl);
-        registry.add("spring.datasource.username", postgresqlContainer::getUsername);
-        registry.add("spring.datasource.password", postgresqlContainer::getPassword);
+  @DynamicPropertySource
+  static void configureProperties(DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", postgresqlContainer::getJdbcUrl);
+    registry.add("spring.datasource.username", postgresqlContainer::getUsername);
+    registry.add("spring.datasource.password", postgresqlContainer::getPassword);
 
-        registry.add("spring.data.redis.host", redisContainer::getHost);
-        registry.add("spring.data.redis.port", () -> redisContainer.getMappedPort(6379).toString());
+    registry.add("spring.data.redis.host", redisContainer::getHost);
+    registry.add("spring.data.redis.port", () -> redisContainer.getMappedPort(6379).toString());
 
-        // Явно отключаем Liquibase для тестов
-        registry.add("spring.liquibase.enabled", () -> false);
-    }
+    // Явно отключаем Liquibase для тестов
+    registry.add("spring.liquibase.enabled", () -> false);
+  }
 }

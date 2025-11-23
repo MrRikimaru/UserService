@@ -87,9 +87,9 @@ public class UserService {
   }
 
   public Page<UserResponseDTO> getAllUsers(
-      String name, String surname, Boolean active, Pageable pageable) {
-    Specification<User> spec =
-        Specification.where(UserSpecifications.hasFirstName(name))
+          String name, String surname, Boolean active, Pageable pageable) {
+
+    Specification<User> spec = UserSpecifications.hasFirstName(name)
             .and(UserSpecifications.hasSurname(surname))
             .and(UserSpecifications.isActive(active));
 
@@ -160,6 +160,10 @@ public class UserService {
       })
   public void activateUser(Long id) {
     log.info("Activating user with id: {}", id);
+    if (!userRepository.existsById(id)) {
+      log.warn("Attempt to activate non-existent user with id: {}", id);
+      throw new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id);
+    }
     userRepository.updateActiveStatus(id, true);
     log.info("User activated with id: {}", id);
   }
@@ -173,12 +177,20 @@ public class UserService {
       })
   public void deactivateUser(Long id) {
     log.info("Deactivating user with id: {}", id);
+    if (!userRepository.existsById(id)) {
+      log.warn("Attempt to deactivate non-existent user with id: {}", id);
+      throw new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id);
+    }
     userRepository.updateActiveStatus(id, false);
     log.info("User deactivated with id: {}", id);
   }
 
   @Cacheable(value = "userCards", key = "#userId")
   public List<PaymentCardResponseDTO> getUserCards(Long userId) {
+    if (!userRepository.existsById(userId)) {
+      throw new UserNotFoundException(USER_NOT_FOUND_MESSAGE + userId);
+    }
+
     List<PaymentCard> cards = paymentCardRepository.findByUserId(userId);
     return cards.stream().map(paymentCardMapper::toDTO).toList();
   }
@@ -196,6 +208,11 @@ public class UserService {
       })
   public void deleteUser(Long id) {
     log.info("Deleting user with id: {}", id);
+    if (!userRepository.existsById(id)) {
+      log.warn("Attempt to delete non-existent user with id: {}", id);
+      throw new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id);
+    }
+
     userRepository.deleteById(id);
     log.info("User deleted with id: {}", id);
   }
