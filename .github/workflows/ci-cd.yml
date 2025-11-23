@@ -126,12 +126,17 @@ jobs:
             sleep 1
           done
           echo "PostgreSQL is ready!"
-          
+
           echo "Waiting for Redis..."
-          until redis-cli -h localhost -p 6379 ping | grep -q "PONG"; do
+          # Простая проверка доступности порта Redis без redis-cli
+          until nc -z localhost 6379; do
             sleep 1
           done
-          echo "Redis is ready!"
+          echo "Redis port is open!"
+
+          # Даем дополнительное время для полной инициализации Redis
+          sleep 5
+          echo "Services are ready!"
 
       - name: Run tests with detailed output
         run: |
