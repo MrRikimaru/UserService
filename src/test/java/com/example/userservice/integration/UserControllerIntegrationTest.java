@@ -30,7 +30,6 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    // Очищаем кэш и базу данных перед каждым тестом
     cacheService.evictAllUserCaches();
     userRepository.deleteAll();
   }
@@ -63,7 +62,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void getUserById_ShouldReturnUser_WhenUserExists() throws Exception {
-    // Arrange - сначала создаем пользователя
+    // Arrange
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("Get");
     createRequest.setSurname("User");
@@ -94,7 +93,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void updateUser_ShouldReturnUpdatedUser_WhenValidInput() throws Exception {
-    // Arrange - создаем пользователя
+    // Arrange
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("Original");
     createRequest.setSurname("Name");
@@ -114,7 +113,6 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     UserResponseDTO createdUser = objectMapper.readValue(createResponse, UserResponseDTO.class);
     Long userId = createdUser.getId();
 
-    // Подготавливаем данные для обновления
     UserRequestDTO updateRequest = new UserRequestDTO();
     updateRequest.setName("Updated");
     updateRequest.setSurname("Name");
@@ -133,7 +131,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void activateUser_ShouldActivateUser() throws Exception {
-    // Arrange - создаем неактивного пользователя
+    // Arrange
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("Activate");
     createRequest.setSurname("Test");
@@ -160,7 +158,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void getAllUsers_ShouldReturnPageOfUsers() throws Exception {
-    // Arrange - создаем тестового пользователя
+    // Arrange
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("Page");
     createRequest.setSurname("Test");
@@ -183,7 +181,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void deactivateUser_ShouldDeactivateUser() throws Exception {
-    // Arrange - создаем активного пользователя
+    // Arrange
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("Deactivate");
     createRequest.setSurname("Test");
@@ -210,7 +208,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void deleteUser_ShouldDeleteUser() throws Exception {
-    // Arrange - создаем пользователя
+    // Arrange
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("Delete");
     createRequest.setSurname("Test");
@@ -239,7 +237,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void getUserWithCardsById_ShouldReturnUserWithCards() throws Exception {
-    // Arrange - создаем пользователя
+    // Arrange
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("WithCards");
     createRequest.setSurname("Test");
@@ -269,7 +267,7 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void getUserCards_ShouldReturnUserCards() throws Exception {
-    // Arrange - создаем пользователя
+    // Arrange
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("Cards");
     createRequest.setSurname("Test");

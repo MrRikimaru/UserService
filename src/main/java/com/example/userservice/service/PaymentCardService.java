@@ -41,7 +41,6 @@ public class PaymentCardService {
     log.info("Creating payment card for user: {}", userId);
     User user = userService.getUserEntityById(userId);
 
-    // Use pessimistic lock to prevent race condition
     int cardCount = paymentCardRepository.countCardsByUserId(userId);
     if (cardCount >= 5) {
       log.warn("Card limit exceeded for user: {}", userId);
@@ -49,7 +48,6 @@ public class PaymentCardService {
     }
 
     PaymentCard card = paymentCardMapper.toEntity(cardRequestDTO);
-    // Double-check in entity method (defensive programming)
     user.addPaymentCard(card);
     PaymentCard savedCard = paymentCardRepository.save(card);
     log.info("Payment card created with id: {} for user: {}", savedCard.getId(), userId);
@@ -104,7 +102,6 @@ public class PaymentCardService {
             .orElseThrow(
                 () -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
 
-    // Validate expiration date is in the future
     if (cardRequestDTO.getExpirationDate() != null
         && !cardRequestDTO.getExpirationDate().isAfter(java.time.LocalDate.now())) {
       log.warn("Invalid expiration date provided for card id: {}", id);
@@ -176,7 +173,6 @@ public class PaymentCardService {
     PaymentCard card = getCardEntityById(id);
     Long userId = card.getUser().getId();
     paymentCardRepository.deleteById(id);
-    // Manually evict caches since we can't use #result in void methods
     cacheService.evictUserCaches(userId);
     log.info("Payment card deleted with id: {} for user: {}", id, userId);
   }

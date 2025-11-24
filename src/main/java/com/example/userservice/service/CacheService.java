@@ -21,19 +21,9 @@ public class CacheService {
 
   public void evictUserCaches(Long userId) {
     try {
-      // Use CacheManager to properly evict caches with correct key prefix
-      var usersCache = cacheManager.getCache("users");
-      if (usersCache != null) {
-        usersCache.evictIfPresent(userId);
-      }
-      var usersWithCardsCache = cacheManager.getCache("usersWithCards");
-      if (usersWithCardsCache != null) {
-        usersWithCardsCache.evictIfPresent(userId);
-      }
-      var userCardsCache = cacheManager.getCache("userCards");
-      if (userCardsCache != null) {
-        userCardsCache.evictIfPresent(userId);
-      }
+      cacheManager.getCache("users").evictIfPresent(userId);
+      cacheManager.getCache("usersWithCards").evictIfPresent(userId);
+      cacheManager.getCache("userCards").evictIfPresent(userId);
       log.debug("Cache evicted for user: {}", userId);
     } catch (Exception e) {
       log.error("Error evicting cache for user {}: {}", userId, e.getMessage());
@@ -42,14 +32,10 @@ public class CacheService {
 
   public void evictAllUserCaches() {
     try {
-      // Use SCAN instead of KEYS to avoid blocking Redis
       Set<String> allKeys = new HashSet<>();
 
-      // Scan for users cache keys
       scanKeys(CACHE_KEY_PREFIX + "users::*", allKeys);
-      // Scan for usersWithCards cache keys
       scanKeys(CACHE_KEY_PREFIX + "usersWithCards::*", allKeys);
-      // Scan for userCards cache keys
       scanKeys(CACHE_KEY_PREFIX + "userCards::*", allKeys);
 
       if (!allKeys.isEmpty()) {

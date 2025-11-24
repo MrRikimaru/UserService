@@ -49,7 +49,6 @@ public class UserService {
     User user = userMapper.toEntity(userRequestDTO);
     User savedUser = userRepository.save(user);
     log.info("User created with id: {}", savedUser.getId());
-    // No need to evict all entries - new user doesn't affect existing cache entries
     return userMapper.toDTO(savedUser);
   }
 
@@ -65,9 +64,7 @@ public class UserService {
 
   @Cacheable(value = "usersWithCards", key = "#id")
   public UserWithCardsResponseDTO getUserWithCardsById(Long id) {
-    User user =
-        userRepository
-            .findById(id)
+    User user = userRepository.findByIdWithCards(id)
             .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
     UserWithCardsResponseDTO userWithCards = new UserWithCardsResponseDTO();
     userWithCards.setId(user.getId());
@@ -79,8 +76,9 @@ public class UserService {
     userWithCards.setCreatedAt(user.getCreatedAt());
     userWithCards.setUpdatedAt(user.getUpdatedAt());
 
-    List<PaymentCardResponseDTO> cards =
-        paymentCardRepository.findByUserId(id).stream().map(paymentCardMapper::toDTO).toList();
+    List<PaymentCardResponseDTO> cards = user.getPaymentCards().stream()
+            .map(paymentCardMapper::toDTO)
+            .toList();
     userWithCards.setPaymentCards(cards);
 
     return userWithCards;
@@ -127,7 +125,6 @@ public class UserService {
             .findById(id)
             .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
 
-    // Check email uniqueness if email is being changed
     if (!user.getEmail().equals(userRequestDTO.getEmail())
         && userRepository.existsByEmail(userRequestDTO.getEmail())) {
       log.warn("Duplicate email attempt during update for user id: {}", id);

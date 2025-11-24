@@ -96,7 +96,6 @@ public class GlobalExceptionHandler {
       ConstraintViolationException ex) {
     log.warn("Constraint violation: {}", ex.getMessage());
 
-    // Извлекаем первое сообщение об ошибке
     String errorMessage =
         ex.getConstraintViolations().stream()
             .findFirst()

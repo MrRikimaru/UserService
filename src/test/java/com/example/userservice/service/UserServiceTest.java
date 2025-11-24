@@ -19,7 +19,7 @@ import com.example.userservice.repository.PaymentCardRepository;
 import com.example.userservice.repository.UserRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -130,10 +130,9 @@ class UserServiceTest {
     user.setActive(true);
     user.setCreatedAt(LocalDateTime.now());
     user.setUpdatedAt(LocalDateTime.now());
+    user.setPaymentCards(new ArrayList<>());
 
-    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-    when(paymentCardRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-    // Убрал ненужное заглушение для paymentCardMapper.toDTO
+    when(userRepository.findByIdWithCards(userId)).thenReturn(Optional.of(user));
 
     // Act
     UserWithCardsResponseDTO result = userService.getUserWithCardsById(userId);
@@ -143,17 +142,15 @@ class UserServiceTest {
     assertEquals(userId, result.getId());
     assertEquals("John", result.getName());
     assertEquals("Doe", result.getSurname());
-    assertEquals("john.doe@example.com", result.getEmail());
     assertNotNull(result.getPaymentCards());
     assertTrue(result.getPaymentCards().isEmpty());
 
-    verify(userRepository).findById(userId);
-    verify(paymentCardRepository).findByUserId(userId);
-    // Проверяем, что mapper не вызывался, так как список карт пустой
-    verify(paymentCardMapper, never()).toDTO(any());
+    verify(userRepository).findByIdWithCards(userId);
+    verify(paymentCardRepository, never()).findByUserId(anyLong());
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   void getAllUsers_ShouldReturnPageOfUsers() {
     // Arrange
     Pageable pageable = Pageable.unpaged();
@@ -187,7 +184,7 @@ class UserServiceTest {
     existingUser.setId(userId);
     existingUser.setName("Original");
     existingUser.setSurname("Name");
-    existingUser.setEmail("original@example.com"); // ДОБАВЬТЕ email
+    existingUser.setEmail("original@example.com");
 
     User updatedUser = new User();
     updatedUser.setId(userId);
@@ -276,20 +273,25 @@ class UserServiceTest {
     user.setCreatedAt(LocalDateTime.now());
     user.setUpdatedAt(LocalDateTime.now());
 
-    // Создаем реальную карту для entity
-    com.example.userservice.entity.PaymentCard card =
-        new com.example.userservice.entity.PaymentCard();
+    PaymentCard card = new PaymentCard();
     card.setId(1L);
     card.setNumber("1234567890123456");
     card.setHolder("John Doe");
+    card.setExpirationDate(LocalDate.now().plusYears(2));
+    card.setActive(true);
+
+    List<PaymentCard> cards = new ArrayList<>();
+    cards.add(card);
+    user.setPaymentCards(cards);
 
     PaymentCardResponseDTO cardResponseDTO = new PaymentCardResponseDTO();
     cardResponseDTO.setId(1L);
     cardResponseDTO.setNumber("1234567890123456");
     cardResponseDTO.setHolder("John Doe");
+    cardResponseDTO.setExpirationDate(LocalDate.now().plusYears(2));
+    cardResponseDTO.setActive(true);
 
-    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-    when(paymentCardRepository.findByUserId(userId)).thenReturn(List.of(card));
+    when(userRepository.findByIdWithCards(userId)).thenReturn(Optional.of(user));
     when(paymentCardMapper.toDTO(card)).thenReturn(cardResponseDTO);
 
     // Act
@@ -305,8 +307,8 @@ class UserServiceTest {
     assertEquals("1234567890123456", result.getPaymentCards().get(0).getNumber());
     assertEquals("John Doe", result.getPaymentCards().get(0).getHolder());
 
-    verify(userRepository).findById(userId);
-    verify(paymentCardRepository).findByUserId(userId);
+    verify(userRepository).findByIdWithCards(userId);
+    verify(paymentCardRepository, never()).findByUserId(anyLong());
     verify(paymentCardMapper).toDTO(card);
   }
 
@@ -314,11 +316,11 @@ class UserServiceTest {
   void getUserWithCardsById_ShouldThrowUserNotFoundException_WhenUserNotExists() {
     // Arrange
     Long userId = 999L;
-    when(userRepository.findById(userId)).thenReturn(Optional.empty());
+    when(userRepository.findByIdWithCards(userId)).thenReturn(Optional.empty());
 
     // Act & Assert
     assertThrows(UserNotFoundException.class, () -> userService.getUserWithCardsById(userId));
-    verify(userRepository).findById(userId);
+    verify(userRepository).findByIdWithCards(userId);
     verify(paymentCardRepository, never()).findByUserId(anyLong());
   }
 

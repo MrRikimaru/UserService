@@ -12,15 +12,16 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT) // ИЗМЕНИТЕ эту строку
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@SuppressWarnings("resource")
 public abstract class AbstractIntegrationTest {
 
   @Container
   static PostgreSQLContainer<?> postgresqlContainer =
       new PostgreSQLContainer<>("postgres:15-alpine")
-          .withDatabaseName("testdb")
+          .withDatabaseName("testDb")
           .withUsername("test")
           .withPassword("test")
           .withReuse(true);
@@ -40,7 +41,6 @@ public abstract class AbstractIntegrationTest {
     registry.add("spring.data.redis.host", redisContainer::getHost);
     registry.add("spring.data.redis.port", () -> redisContainer.getMappedPort(6379).toString());
 
-    // Явно отключаем Liquibase для тестов
     registry.add("spring.liquibase.enabled", () -> false);
   }
 }
