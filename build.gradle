@@ -91,6 +91,12 @@ test {
 	maxParallelForks = 1
 	forkEvery = 1
 	finalizedBy jacocoTestReport
+
+	jvmArgs = [
+			"-javaagent:${configurations.testRuntimeClasspath.find { it.name.contains("byte-buddy-agent") }.absolutePath}"
+	]
+
+	finalizedBy jacocoTestReport
 }
 
 jacoco {
@@ -129,22 +135,29 @@ jacocoTestCoverageVerification {
 	}
 }
 
+// SonarQube configuration
 sonarqube {
 	properties {
 		property "sonar.projectKey", "UserService"
-		property "sonar.projectName", "User Service"
-		property "sonar.host.url", System.getenv('SONAR_HOST_URL') ?: 'http://localhost:9000'
-		property "sonar.token", System.getenv('SONAR_TOKEN') ?: ''
+		property "sonar.projectName", "UserService"
+		property "sonar.host.url", "https://sonarcloud.io"
+		property "sonar.organization", "mrrikimaru"
 		property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml"
 		property "sonar.java.coveragePlugin", "jacoco"
 		property "sonar.junit.reportPaths", "build/test-results/test"
 		property "sonar.coverage.exclusions", "**/dto/**,**/entity/**,**/config/**,**/exception/**,**/UserServiceApplication.java"
 		property "sonar.cpd.exclusions", "**/dto/**,**/entity/**"
 		property "sonar.sourceEncoding", "UTF-8"
-		property "sonar.java.binaries", "build/classes"
-		property "sonar.java.test.binaries", "build/classes"
+		property "sonar.java.binaries", "build/classes/java/main"
+		property "sonar.java.test.binaries", "build/classes/java/test"
 		property "sonar.tests", "src/test"
+		property "sonar.scm.provider", "git"
+		property "sonar.gradle.skipCompile", "true"
 	}
+}
+
+tasks.named('sonar') {
+	dependsOn jacocoTestReport
 }
 
 spotless {
@@ -163,8 +176,6 @@ dependencyCheck {
 	suppressionFile = 'config/dependency-check-suppressions.xml'
 }
 
-check.dependsOn jacocoTestCoverageVerification
-
 compileJava {
 	options.compilerArgs = [
 			'-Amapstruct.defaultComponentModel=spring',
@@ -176,13 +187,6 @@ tasks.register('buildWithoutTests') {
 	dependsOn tasks.named('build')
 	doFirst {
 		tasks.named('test').get().enabled = false
-	}
-}
-
-tasks.register('sonarAnalysis') {
-	dependsOn 'build'
-	doLast {
-		println "SonarQube analysis completed"
 	}
 }
 
