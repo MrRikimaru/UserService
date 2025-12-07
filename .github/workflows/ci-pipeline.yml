@@ -111,9 +111,6 @@ jobs:
           echo "TESTCONTAINERS_RYUK_DISABLED=true" >> $GITHUB_ENV
           echo "TESTCONTAINERS_CHECKS_DISABLE=true" >> $GITHUB_ENV
 
-      - name: Apply Spotless formatting
-        run: ./gradlew spotlessApply
-
       - name: Wait for services to be ready
         run: |
           echo "Waiting for PostgreSQL..."
