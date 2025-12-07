@@ -103,83 +103,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.10'
 
-      - name: Set up TestContainers environment
-        run: |
-          echo "TESTCONTAINERS_RYUK_DISABLED=true" >> $GITHUB_ENV
-          echo "TESTCONTAINERS_CHECKS_DISABLE=true" >> $GITHUB_ENV
-
-      - name: Wait for services to be ready
-        run: |
-          echo "Waiting for PostgreSQL..."
-          until pg_isready -h localhost -p 5432; do
-            sleep 1
-          done
-          echo "PostgreSQL is ready!"
-
-          echo "Waiting for Redis..."
-          # Простая проверка доступности порта Redis без redis-cli
-          until nc -z localhost 6379; do
-            sleep 1
-          done
-          echo "Redis port is open!"
-
-          # Даем дополнительное время для полной инициализации Redis
-          sleep 5
-          echo "Services are ready!"
-
-      - name: Run tests with detailed output info
-        run: |
-          ./gradlew test jacocoTestReport \
-            --info \
-            --stacktrace \
-            --no-daemon \
-            -Dorg.gradle.test.worker.max=2 \
-            -Dorg.gradle.parallel=true \
-            -Dtestcontainers.reuse.enable=true \
-            -Dtestcontainers.ryuk.disabled=true
+      - name: Run tests
+        run: gradle test integrationTest
         env:
           SPRING_PROFILES_ACTIVE: test
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: testdb
-          DB_USERNAME: test
-          DB_PASSWORD: test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          TESTCONTAINERS_RYUK_DISABLED: true
-          TESTCONTAINERS_CHECKS_DISABLE: true
-          GRADLE_OPTS: "-Xmx2g -XX:MaxMetaspaceSize=1g"
+          DB_URL: jdbc:postgresql://localhost:5432/testdb
+          DB_USERNAME: testuser
+          DB_PASSWORD: testpassword
 
-      - name: Print failed test details
-        if: failure()
-        run: |
-          echo "=== FAILED TESTS DETAILS ==="
-          find build/test-results -name "*.xml" -exec grep -l "failure" {} \; | xargs cat | grep -A 10 -B 5 "failure" || true
-          
-          echo "=== TEST SUMMARY ==="
-          if [ -f "build/reports/tests/test/index.html" ]; then
-            grep -oE "tests failed.*|Failures:.*" build/reports/tests/test/index.html || true
-          fi
-
-      - name: Upload test results
+      - name: Upload test reports
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: test-results
-          path: |
-            build/reports/tests/
-            build/test-results/
-          retention-days: 7
-
-      - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-reports
-          path: build/reports/jacoco/
+          name: test-reports
+          path: build/reports/tests/
           retention-days: 7
 
   code-analysis:
