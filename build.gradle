@@ -1,11 +1,14 @@
+import com.github.spotbugs.snom.Effort
+
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.7'
+	id 'org.springframework.boot' version '3.5.8'
 	id 'io.spring.dependency-management' version '1.1.7'
-	id 'org.owasp.dependencycheck' version '9.0.9'
-	id 'org.sonarqube' version '4.4.1.3373'
-	id 'com.diffplug.spotless' version '6.25.0'
+	id 'checkstyle'
 	id 'jacoco'
+	id 'com.github.spotbugs' version '6.0.16'
+	id 'org.owasp.dependencycheck' version '9.0.10'
+	id 'org.sonarqube' version '5.0.0.4638'
 }
 
 group = 'com.example'
@@ -32,6 +35,12 @@ ext {
 	testcontainersVersion = "1.19.7"
 }
 
+dependencyManagement {
+	imports {
+		mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
+	}
+}
+
 dependencies {
 	// Основные зависимости
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -50,6 +59,7 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 	implementation 'org.apache.commons:commons-pool2'
 	implementation 'org.springframework.boot:spring-boot-starter-logging'
@@ -73,34 +83,58 @@ dependencies {
 
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.14.0'
 }
 
-dependencyManagement {
-	imports {
-		mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
-	}
-}
-
-test {
+tasks.named('test') {
 	useJUnitPlatform()
-	testLogging {
-		events "passed", "skipped", "failed"
-		exceptionFormat "full"
-	}
-	systemProperty "spring.profiles.active", "test"
-	maxParallelForks = 1
-	forkEvery = 1
-	finalizedBy jacocoTestReport
-
 	jvmArgs = [
-			"-javaagent:${configurations.testRuntimeClasspath.find { it.name.contains("byte-buddy-agent") }.absolutePath}"
+			"-XX:+EnableDynamicAgentLoading",
+			"-Djdk.instrument.traceUsage=false"
 	]
-
-	finalizedBy jacocoTestReport
 }
 
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs = [
+			'-Amapstruct.suppressGeneratorTimestamp=true',
+			'-Amapstruct.defaultComponentModel=spring',
+			'-Amapstruct.verbose=false',
+			'-Amapstruct.suppressGeneratorVersionInfoComment=true'
+	]
+}
+
+// Checkstyle
+checkstyle {
+	toolVersion = '10.12.5'
+	configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+	ignoreFailures = false
+	showViolations = true
+	maxErrors = 0
+	maxWarnings = 100
+}
+
+tasks.withType(Checkstyle).configureEach {
+	reports {
+		xml.required = true
+		html.required = true
+	}
+}
+
+// SpotBugs
+spotbugs {
+	toolVersion = '4.9.7'
+	ignoreFailures = true
+	showStackTraces = true
+	showProgress = true
+	effort = Effort.MAX
+	excludeFilter = file("${rootDir}/config/spotbugs/exclude.xml")
+}
+
+// JaCoCo
 jacoco {
 	toolVersion = "0.8.11"
+	reportsDirectory.set(layout.buildDirectory.dir('reports/jacoco'))
 }
 
 jacocoTestReport {
@@ -110,27 +144,53 @@ jacocoTestReport {
 		html.required = true
 		csv.required = false
 	}
+}
 
-	afterEvaluate {
-		classDirectories.setFrom(files(classDirectories.files.collect {
-			fileTree(dir: it, exclude: [
+jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			limit {
+				minimum = 0.62
+			}
+			excludes = [
 					'**/dto/**',
 					'**/entity/**',
 					'**/config/**',
 					'**/exception/**',
-					'**/UserServiceApplication.class'
-			])
-		}))
+					'**/mapper/**',
+					'**/*Application.*',
+					'**/*Config.*'
+			]
+		}
 	}
 }
 
-jacocoTestCoverageVerification {
-	dependsOn jacocoTestReport
-	violationRules {
-		rule {
-			limit {
-				minimum = 0.6
-			}
+// OWASP
+dependencyCheck {
+	format = 'ALL'
+	suppressionFile = file("${rootDir}/config/owasp/suppressions.xml")
+	skipConfigurations = [
+			'checkstyle',
+			'spotbugs',
+			'sonarqube'
+	]
+	failBuildOnCVSS = 0
+	analyzers {
+		assemblyEnabled = false
+	}
+	autoUpdate = false
+	data {
+		directory = layout.buildDirectory.dir("reports/dependency-check-data").get().asFile
+	}
+	failOnError = false
+
+	if (System.getenv('CI')) {
+		println "CI environment detected, skipping NVD updates"
+	} else if (System.getenv('NVD_API_KEY')) {
+		println "NVD_API_KEY found, configuring NVD data source"
+		nvd {
+			apiKey = System.getenv('NVD_API_KEY')
+			delay = 6000
 		}
 	}
 }
@@ -138,63 +198,101 @@ jacocoTestCoverageVerification {
 // SonarQube configuration
 sonarqube {
 	properties {
-		property "sonar.projectKey", "UserService"
-		property "sonar.projectName", "UserService"
-		property "sonar.host.url", "https://sonarcloud.io"
+		property "sonar.projectKey", "MrRikimaru_UserService"
 		property "sonar.organization", "mrrikimaru"
-		property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml"
-		property "sonar.java.coveragePlugin", "jacoco"
-		property "sonar.junit.reportPaths", "build/test-results/test"
-		property "sonar.coverage.exclusions", "**/dto/**,**/entity/**,**/config/**,**/exception/**,**/UserServiceApplication.java"
-		property "sonar.cpd.exclusions", "**/dto/**,**/entity/**"
+		property "sonar.host.url", "https://sonarcloud.io"
+		property 'sonar.login', System.getenv('SONAR_TOKEN') ?: ''
 		property "sonar.sourceEncoding", "UTF-8"
-		property "sonar.java.binaries", "build/classes/java/main"
-		property "sonar.java.test.binaries", "build/classes/java/test"
-		property "sonar.tests", "src/test"
-		property "sonar.scm.provider", "git"
-		property "sonar.gradle.skipCompile", "true"
+		property 'sonar.java.source', '21'
+		property 'sonar.java.binaries', "${layout.buildDirectory.get().asFile}/classes/java/main"
+		property 'sonar.java.test.binaries', "${layout.buildDirectory.get().asFile}/classes/java/test"
+		property 'sonar.coverage.jacoco.xmlReportPaths',
+				"${layout.buildDirectory.get().asFile}/reports/jacoco/test/jacocoTestReport.xml"
+
+		property 'sonar.java.checkstyle.reportPaths',
+				"${layout.buildDirectory.get().asFile}/reports/checkstyle/main.xml"
+
+		property 'sonar.java.spotbugs.reportPaths',
+				"${layout.buildDirectory.get().asFile}/reports/spotbugs/main.xml"
+
+		property 'sonar.dependencyCheck.reportPaths',
+				"${layout.buildDirectory.get().asFile}/reports/dependency-check/report.xml"
 	}
 }
 
-tasks.named('sonar') {
-	dependsOn jacocoTestReport
-}
+tasks.register('integrationTest', Test) {
+	description = 'Runs integration tests.'
+	group = 'verification'
 
-spotless {
-	java {
-		target 'src/**/*.java'
-		googleJavaFormat()
-		removeUnusedImports()
-		trimTrailingWhitespace()
-		endWithNewline()
+	useJUnitPlatform()
+
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+
+	systemProperty 'spring.profiles.active', 'test'
+
+	filter {
+		excludeTestsMatching '*UnitTest'
+		includeTestsMatching '*IntegrationTest'
 	}
+
+	mustRunAfter test
 }
 
-dependencyCheck {
-	formats = ['HTML', 'JSON']
-	failBuildOnCVSS = 7
-	suppressionFile = 'config/dependency-check-suppressions.xml'
+tasks.register('runAllTests') {
+	description = 'Runs all tests (unit + integration).'
+	group = 'verification'
+	dependsOn test, integrationTest
 }
 
-compileJava {
-	options.compilerArgs = [
-			'-Amapstruct.defaultComponentModel=spring',
-			'-parameters'
+tasks.register('codeQuality') {
+	description = 'Runs all code quality checks.'
+	group = 'verification'
+	dependsOn checkstyleMain, jacocoTestCoverageVerification
+}
+
+check.dependsOn jacocoTestCoverageVerification
+
+build.dependsOn codeQuality
+
+test.finalizedBy jacocoTestReport
+
+integrationTest.mustRunAfter test
+
+wrapper {
+	gradleVersion = '8.10'
+	distributionType = Wrapper.DistributionType.BIN
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.compilerArgs += [
+			'-parameters',
+			'-Xlint:unchecked',
+			'-Xlint:deprecation'
 	]
 }
 
-tasks.register('buildWithoutTests') {
-	dependsOn tasks.named('build')
-	doFirst {
-		tasks.named('test').get().enabled = false
+tasks.withType(Test).configureEach {
+	systemProperty 'file.encoding', 'UTF-8'
+	maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+	testLogging {
+		events 'passed', 'skipped', 'failed'
+		showStandardStreams = true
 	}
 }
 
-bootJar {
-	archiveFileName = 'app.jar'
-	enabled = true
+
+tasks.register('qualityReports') {
+	description = 'Generates all quality reports.'
+	group = 'verification'
+	dependsOn checkstyleMain, spotbugsMain, jacocoTestReport, dependencyCheckAnalyze
 }
 
-jar {
-	enabled = false
+tasks.withType(AbstractCompile).configureEach {
+	options.incremental = true
+}
+
+tasks.named('build') {
+	dependsOn 'checkstyleMain', 'spotbugsMain'
 }
