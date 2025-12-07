@@ -1,8 +1,15 @@
 package com.example.userservice.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.example.userservice.dto.PaymentCardRequestDTO;
 import com.example.userservice.dto.PaymentCardResponseDTO;
@@ -17,7 +24,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,20 +38,15 @@ import org.springframework.data.jpa.domain.Specification;
 @ExtendWith(MockitoExtension.class)
 class PaymentCardServiceTest {
 
-  @Mock
-  private PaymentCardRepository paymentCardRepository;
+  @Mock private PaymentCardRepository paymentCardRepository;
 
-  @Mock
-  private UserService userService;
+  @Mock private UserService userService;
 
-  @Mock
-  private PaymentCardMapper paymentCardMapper;
+  @Mock private PaymentCardMapper paymentCardMapper;
 
-  @Mock
-  private CacheService cacheService;
+  @Mock private CacheService cacheService;
 
-  @InjectMocks
-  private PaymentCardService paymentCardService;
+  @InjectMocks private PaymentCardService paymentCardService;
 
   private User testUser;
   private PaymentCard testCard;
@@ -120,8 +121,8 @@ class PaymentCardServiceTest {
 
     // Act & Assert
     assertThrows(
-            CardLimitExceededException.class,
-            () -> paymentCardService.createCard(testCardRequestDTO, userId));
+        CardLimitExceededException.class,
+        () -> paymentCardService.createCard(testCardRequestDTO, userId));
     verify(paymentCardRepository, never()).save(any(PaymentCard.class));
   }
 
@@ -149,8 +150,7 @@ class PaymentCardServiceTest {
     when(paymentCardRepository.findById(cardId)).thenReturn(Optional.empty());
 
     // Act & Assert
-    assertThrows(PaymentCardNotFoundException.class,
-            () -> paymentCardService.getCardById(cardId));
+    assertThrows(PaymentCardNotFoundException.class, () -> paymentCardService.getCardById(cardId));
   }
 
   @Test
@@ -161,12 +161,12 @@ class PaymentCardServiceTest {
     Page<PaymentCard> cardPage = new PageImpl<>(List.of(testCard));
 
     when(paymentCardRepository.findAll(any(Specification.class), any(Pageable.class)))
-            .thenReturn(cardPage);
+        .thenReturn(cardPage);
     when(paymentCardMapper.toDTO(any(PaymentCard.class))).thenReturn(testCardResponseDTO);
 
     // Act
     Page<PaymentCardResponseDTO> result =
-            paymentCardService.getAllCards("TEST", true, 1L, pageable);
+        paymentCardService.getAllCards("TEST", true, 1L, pageable);
 
     // Assert
     assertNotNull(result);
@@ -229,12 +229,12 @@ class PaymentCardServiceTest {
 
     when(paymentCardRepository.findById(cardId)).thenReturn(Optional.of(testCard));
     when(paymentCardRepository.findByNumber("EXISTING_NUMBER"))
-            .thenReturn(Optional.of(existingCardWithSameNumber));
+        .thenReturn(Optional.of(existingCardWithSameNumber));
 
     // Act & Assert
     assertThrows(
-            DuplicateCardNumberException.class,
-            () -> paymentCardService.updateCard(cardId, updateRequest));
+        DuplicateCardNumberException.class,
+        () -> paymentCardService.updateCard(cardId, updateRequest));
     verify(paymentCardRepository, never()).save(any(PaymentCard.class));
   }
 
@@ -308,8 +308,7 @@ class PaymentCardServiceTest {
     when(paymentCardRepository.findById(cardId)).thenReturn(Optional.empty());
 
     // Act & Assert
-    assertThrows(PaymentCardNotFoundException.class,
-            () -> paymentCardService.deleteCard(cardId));
+    assertThrows(PaymentCardNotFoundException.class, () -> paymentCardService.deleteCard(cardId));
     verify(paymentCardRepository, never()).deleteById(anyLong());
     verify(cacheService, never()).evictUserCaches(anyLong());
   }
@@ -339,8 +338,7 @@ class PaymentCardServiceTest {
 
     // Act & Assert
     assertThrows(
-            PaymentCardNotFoundException.class,
-            () -> paymentCardService.getCardByNumber(cardNumber));
+        PaymentCardNotFoundException.class, () -> paymentCardService.getCardByNumber(cardNumber));
   }
 
   @Test
@@ -356,8 +354,8 @@ class PaymentCardServiceTest {
 
     // Act & Assert
     assertThrows(
-            IllegalArgumentException.class,
-            () -> paymentCardService.updateCard(cardId, invalidRequest));
+        IllegalArgumentException.class,
+        () -> paymentCardService.updateCard(cardId, invalidRequest));
     verify(paymentCardRepository, never()).save(any(PaymentCard.class));
   }
 
@@ -388,12 +386,12 @@ class PaymentCardServiceTest {
     Page<PaymentCard> cardPage = new PageImpl<>(List.of(testCard));
 
     when(paymentCardRepository.findByUserIdAndActiveStatus(userId, true, pageable))
-            .thenReturn(cardPage);
+        .thenReturn(cardPage);
     when(paymentCardMapper.toDTO(any(PaymentCard.class))).thenReturn(testCardResponseDTO);
 
     // Act
     Page<PaymentCardResponseDTO> result =
-            paymentCardService.getActiveCardsByUserId(userId, pageable);
+        paymentCardService.getActiveCardsByUserId(userId, pageable);
 
     // Assert
     assertNotNull(result);

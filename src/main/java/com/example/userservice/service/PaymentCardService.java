@@ -65,9 +65,10 @@ public class PaymentCardService {
   }
 
   public Page<PaymentCardResponseDTO> getAllCards(
-          String holder, Boolean active, Long userId, Pageable pageable) {
+      String holder, Boolean active, Long userId, Pageable pageable) {
 
-    Specification<PaymentCard> spec = PaymentCardSpecifications.hasHolderName(holder)
+    Specification<PaymentCard> spec =
+        PaymentCardSpecifications.hasHolderName(holder)
             .and(PaymentCardSpecifications.isActive(active))
             .and(PaymentCardSpecifications.hasUserId(userId));
 
