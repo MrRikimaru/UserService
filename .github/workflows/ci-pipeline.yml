@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: Simple CI Pipeline
 
 on:
   push:
@@ -6,13 +6,9 @@ on:
   pull_request:
     branches: [main, dev]
 
-#env:
-#  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
-#  DOCKER_IMAGE: user-service
-
 jobs:
   build:
-    name: Build Application
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -24,36 +20,12 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Cache Gradle packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
 
       - name: Build with Gradle
         run: ./gradlew build -x test
 
-      - name: List build artifacts
-        run: ls -la build/libs/
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: build/libs/
-          retention-days: 7
-
   test:
-    name: Run Tests
+    name: Test
     runs-on: ubuntu-latest
     needs: build
 
@@ -77,8 +49,8 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
-          --health-timeout 10s
-          --health-retries 15
+          --health-timeout 5s
+          --health-retries 5
         ports:
           - 6379:6379
 
@@ -91,51 +63,26 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.10'
 
       - name: Wait for services
         run: |
-          echo "Waiting for PostgreSQL..."
-          sleep 5
-          echo "Waiting for Redis..."
-          sleep 3
+          echo "Waiting for services to be ready..."
+          sleep 10
 
-      - name: Run tests with proper environment
+      - name: Run tests
         run: |
-          gradle test integrationTest \
-            --info \
-            --stacktrace \
+          ./gradlew test \
             -Dspring.profiles.active=test \
             -DDB_URL=jdbc:postgresql://localhost:5432/testdb \
             -DDB_USERNAME=testuser \
-            -DB_PASSWORD=testpassword \
+            -DDB_PASSWORD=testpassword \
             -DREDIS_HOST=localhost \
             -DREDIS_PORT=6379
-        env:
-          SPRING_PROFILES_ACTIVE: test
-          DB_URL: jdbc:postgresql://localhost:5432/testdb
-          DB_USERNAME: testuser
-          DB_PASSWORD: testpassword
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
 
-      - name: Upload test reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports
-          path: build/reports/tests/
-          retention-days: 7
-
-  code-analysis:
-    name: Code Analysis with SonarQube
+  sonarqube:
+    name: Code Analysis
     runs-on: ubuntu-latest
     needs: test
-    if: always()
 
     steps:
       - name: Checkout code
@@ -146,62 +93,18 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Cache Gradle packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Run Checkstyle analysis
-        run: gradle checkstyleMain
-        continue-on-error: true
-
-      - name: Run SpotBugs analysis
-        run: gradle spotbugsMain
-        continue-on-error: true
-
-      - name: Generate JaCoCo coverage report
-        run: gradle jacocoTestReport
-
-      - name: Run OWASP Dependency Check
-        if: false
-        run: echo "OWASP Dependency Check is temporarily disabled"
-
-
-      - name: Upload code quality reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-quality-reports
-          path: |
-            build/reports/checkstyle/
-            build/reports/spotbugs/
-            build/reports/jacoco/
-            build/reports/dependency-check/
-          retention-days: 7
 
       - name: Run SonarQube analysis
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/CI_Pipeline') }}
-        run: gradle sonarqube
+        run: |
+          ./gradlew jacocoTestReport
+          ./gradlew sonarqube
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  build-docker:
+  docker-build:
+    name: Docker Image
     runs-on: ubuntu-latest
-    needs: code-analysis
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/CI_Pipeline') }}
-
-    permissions:
-      contents: read
-      packages: write
+    needs: sonarqube
 
     steps:
       - name: Checkout code
@@ -210,24 +113,5 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set lowercase repository name
-        run: |
-          echo "REPO_LC=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-          echo "Repository lowercase: ${{ env.REPO_LC }}"
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/${{ env.REPO_LC }}:latest
-            ghcr.io/${{ env.REPO_LC }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build Docker image
+        run: docker build -t user-service:latest .

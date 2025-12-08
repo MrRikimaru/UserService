@@ -82,7 +82,7 @@ public class CacheService {
 
   private void scanKeys(String pattern, Set<String> keys) {
     try (Cursor<String> cursor =
-                 redisTemplate.scan(ScanOptions.scanOptions().match(pattern).count(100).build())) {
+        redisTemplate.scan(ScanOptions.scanOptions().match(pattern).count(100).build())) {
       while (cursor.hasNext()) {
         String key = cursor.next();
         if (key != null) {
@@ -110,8 +110,11 @@ public class CacheService {
       stats.setUserWithCardsCacheKeys(userWithCardsKeys);
       stats.setUserCardsCacheKeys(userCardsKeys);
 
-      log.debug("Cache stats collected: users={}, usersWithCards={}, userCards={}",
-              userKeys.size(), userWithCardsKeys.size(), userCardsKeys.size());
+      log.debug(
+          "Cache stats collected: users={}, usersWithCards={}, userCards={}",
+          userKeys.size(),
+          userWithCardsKeys.size(),
+          userCardsKeys.size());
 
     } catch (Exception e) {
       log.error("Error collecting cache stats: {}", e.getMessage(), e);
@@ -125,16 +128,21 @@ public class CacheService {
       CacheStats stats = getCacheStats();
 
       log.info("=== CURRENT CACHE STATE ===");
-      log.info("Users cache keys ({}): {}",
-              stats.getUserCacheKeys().size(), stats.getUserCacheKeys());
-      log.info("UsersWithCards cache keys ({}): {}",
-              stats.getUserWithCardsCacheKeys().size(), stats.getUserWithCardsCacheKeys());
-      log.info("UserCards cache keys ({}): {}",
-              stats.getUserCardsCacheKeys().size(), stats.getUserCardsCacheKeys());
-      log.info("=== TOTAL KEYS: {} ===",
-              stats.getUserCacheKeys().size() +
-                      stats.getUserWithCardsCacheKeys().size() +
-                      stats.getUserCardsCacheKeys().size());
+      log.info(
+          "Users cache keys ({}): {}", stats.getUserCacheKeys().size(), stats.getUserCacheKeys());
+      log.info(
+          "UsersWithCards cache keys ({}): {}",
+          stats.getUserWithCardsCacheKeys().size(),
+          stats.getUserWithCardsCacheKeys());
+      log.info(
+          "UserCards cache keys ({}): {}",
+          stats.getUserCardsCacheKeys().size(),
+          stats.getUserCardsCacheKeys());
+      log.info(
+          "=== TOTAL KEYS: {} ===",
+          stats.getUserCacheKeys().size()
+              + stats.getUserWithCardsCacheKeys().size()
+              + stats.getUserCardsCacheKeys().size());
 
     } catch (Exception e) {
       log.error("Error logging cache state: {}", e.getMessage(), e);
@@ -146,15 +154,26 @@ public class CacheService {
     private Set<String> userWithCardsCacheKeys = new HashSet<>();
     private Set<String> userCardsCacheKeys = new HashSet<>();
 
-    public Set<String> getUserCacheKeys() { return userCacheKeys; }
-    public void setUserCacheKeys(Set<String> userCacheKeys) { this.userCacheKeys = userCacheKeys; }
+    public Set<String> getUserCacheKeys() {
+      return userCacheKeys;
+    }
 
-    public Set<String> getUserWithCardsCacheKeys() { return userWithCardsCacheKeys; }
+    public void setUserCacheKeys(Set<String> userCacheKeys) {
+      this.userCacheKeys = userCacheKeys;
+    }
+
+    public Set<String> getUserWithCardsCacheKeys() {
+      return userWithCardsCacheKeys;
+    }
+
     public void setUserWithCardsCacheKeys(Set<String> userWithCardsCacheKeys) {
       this.userWithCardsCacheKeys = userWithCardsCacheKeys;
     }
 
-    public Set<String> getUserCardsCacheKeys() { return userCardsCacheKeys; }
+    public Set<String> getUserCardsCacheKeys() {
+      return userCardsCacheKeys;
+    }
+
     public void setUserCardsCacheKeys(Set<String> userCardsCacheKeys) {
       this.userCardsCacheKeys = userCardsCacheKeys;
     }
