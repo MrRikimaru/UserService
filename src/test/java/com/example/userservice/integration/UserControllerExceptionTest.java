@@ -1,8 +1,13 @@
 package com.example.userservice.integration;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.userservice.dto.UserRequestDTO;
 import com.example.userservice.dto.UserResponseDTO;
@@ -31,6 +36,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    // Очищаем кэш и базу данных перед каждым тестом
     cacheService.evictAllUserCaches();
     userRepository.deleteAll();
   }
@@ -83,7 +89,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
 
   @Test
   void activateUser_ShouldReturnNotFound_WhenUserNotExists() throws Exception {
-    // Act & Assert
+    // Act & Assert - используем существующий ID, который точно не существует
     mockMvc
         .perform(patch("/api/users/{id}/activate", 999999L))
         .andExpect(status().isNotFound())
@@ -94,7 +100,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
 
   @Test
   void deactivateUser_ShouldReturnNotFound_WhenUserNotExists() throws Exception {
-    // Act & Assert
+    // Act & Assert - используем существующий ID, который точно не существует
     mockMvc
         .perform(patch("/api/users/{id}/deactivate", 999999L))
         .andExpect(status().isNotFound())
@@ -116,7 +122,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
 
   @Test
   void getUserCards_ShouldReturnNotFound_WhenUserNotExists() throws Exception {
-    // Act & Assert
+    // Act & Assert - используем существующий ID, который точно не существует
     mockMvc
         .perform(get("/api/users/{userId}/cards", 999999L))
         .andExpect(status().isNotFound())
@@ -141,6 +147,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
     requestDTO2.setSurname("User");
     requestDTO2.setEmail(email);
 
+    // Create first user
     mockMvc
         .perform(
             post("/api/users")
@@ -148,7 +155,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
                 .content(objectMapper.writeValueAsString(requestDTO1)))
         .andExpect(status().isCreated());
 
-    // Act & Assert
+    // Act & Assert - try to create second user with same email
     mockMvc
         .perform(
             post("/api/users")
@@ -162,7 +169,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
 
   @Test
   void updateUser_ShouldReturnConflict_WhenEmailDuplicate() throws Exception {
-    // Arrange
+    // Arrange - create two users
     String email1 = generateUniqueEmail();
     String email2 = generateUniqueEmail();
 
@@ -197,6 +204,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
     UserResponseDTO createdUser1 = objectMapper.readValue(response1, UserResponseDTO.class);
     Long userId1 = createdUser1.getId();
 
+    // Try to update user1 with user2's email
     UserRequestDTO updateRequest = new UserRequestDTO();
     updateRequest.setName("User1");
     updateRequest.setSurname("Test");
@@ -308,7 +316,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
   void createUser_ShouldReturnBadRequest_WhenNameTooLong() throws Exception {
     // Arrange
     UserRequestDTO requestDTO = new UserRequestDTO();
-    requestDTO.setName("A".repeat(256));
+    requestDTO.setName("A".repeat(256)); // Exceeds max length
     requestDTO.setSurname("Test");
     requestDTO.setEmail(generateUniqueEmail());
 
@@ -328,7 +336,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
     UserRequestDTO requestDTO = new UserRequestDTO();
     requestDTO.setName("Test");
     requestDTO.setSurname("Test");
-    requestDTO.setEmail("a".repeat(250) + "@example.com");
+    requestDTO.setEmail("a".repeat(250) + "@example.com"); // Exceeds max length
 
     // Act & Assert
     mockMvc
@@ -342,7 +350,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
 
   @Test
   void updateUser_ShouldReturnBadRequest_WhenValidationFails() throws Exception {
-    // Arrange
+    // Arrange - create a user first
     UserRequestDTO createRequest = new UserRequestDTO();
     createRequest.setName("Original");
     createRequest.setSurname("Name");
@@ -362,6 +370,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
     UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
     Long userId = createdUser.getId();
 
+    // Test missing name in update
     UserRequestDTO updateRequest = new UserRequestDTO();
     updateRequest.setSurname("Updated");
     updateRequest.setEmail(generateUniqueEmail());
@@ -380,10 +389,10 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
 
   @Test
   void getUserById_ShouldReturnBadRequest_WhenInvalidId() throws Exception {
-    // Act & Assert
+    // Act & Assert - negative ID
     mockMvc.perform(get("/api/users/{id}", -1L)).andExpect(status().isBadRequest());
 
-    // Act & Assert
+    // Act & Assert - zero ID
     mockMvc.perform(get("/api/users/{id}", 0L)).andExpect(status().isBadRequest());
   }
 
@@ -395,7 +404,7 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
     requestDTO.setSurname("Test");
     requestDTO.setEmail(generateUniqueEmail());
 
-    // Act & Assert
+    // Act & Assert - negative ID
     mockMvc
         .perform(
             put("/api/users/{id}", -1L)
@@ -406,34 +415,34 @@ class UserControllerExceptionTest extends AbstractIntegrationTest {
 
   @Test
   void deleteUser_ShouldReturnBadRequest_WhenInvalidId() throws Exception {
-    // Act & Assert
+    // Act & Assert - negative ID
     mockMvc.perform(delete("/api/users/{id}", -1L)).andExpect(status().isBadRequest());
 
-    // Act & Assert
+    // Act & Assert - zero ID
     mockMvc.perform(delete("/api/users/{id}", 0L)).andExpect(status().isBadRequest());
   }
 
   @Test
   void activateUser_ShouldReturnBadRequest_WhenInvalidId() throws Exception {
-    // Act & Assert
+    // Act & Assert - negative ID
     mockMvc.perform(patch("/api/users/{id}/activate", -1L)).andExpect(status().isBadRequest());
   }
 
   @Test
   void deactivateUser_ShouldReturnBadRequest_WhenInvalidId() throws Exception {
-    // Act & Assert
+    // Act & Assert - negative ID
     mockMvc.perform(patch("/api/users/{id}/deactivate", -1L)).andExpect(status().isBadRequest());
   }
 
   @Test
   void getUserWithCardsById_ShouldReturnBadRequest_WhenInvalidId() throws Exception {
-    // Act & Assert
+    // Act & Assert - negative ID
     mockMvc.perform(get("/api/users/{id}/with-cards", -1L)).andExpect(status().isBadRequest());
   }
 
   @Test
   void getUserCards_ShouldReturnBadRequest_WhenInvalidId() throws Exception {
-    // Act & Assert
+    // Act & Assert - negative ID
     mockMvc.perform(get("/api/users/{userId}/cards", -1L)).andExpect(status().isBadRequest());
   }
 }

@@ -64,7 +64,9 @@ public class UserService {
 
   @Cacheable(value = "usersWithCards", key = "#id")
   public UserWithCardsResponseDTO getUserWithCardsById(Long id) {
-    User user = userRepository.findByIdWithCards(id)
+    User user =
+        userRepository
+            .findByIdWithCards(id)
             .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
     UserWithCardsResponseDTO userWithCards = new UserWithCardsResponseDTO();
     userWithCards.setId(user.getId());
@@ -76,18 +78,18 @@ public class UserService {
     userWithCards.setCreatedAt(user.getCreatedAt());
     userWithCards.setUpdatedAt(user.getUpdatedAt());
 
-    List<PaymentCardResponseDTO> cards = user.getPaymentCards().stream()
-            .map(paymentCardMapper::toDTO)
-            .toList();
+    List<PaymentCardResponseDTO> cards =
+        user.getPaymentCards().stream().map(paymentCardMapper::toDTO).toList();
     userWithCards.setPaymentCards(cards);
 
     return userWithCards;
   }
 
   public Page<UserResponseDTO> getAllUsers(
-          String name, String surname, Boolean active, Pageable pageable) {
+      String name, String surname, Boolean active, Pageable pageable) {
 
-    Specification<User> spec = UserSpecifications.hasFirstName(name)
+    Specification<User> spec =
+        UserSpecifications.hasFirstName(name)
             .and(UserSpecifications.hasSurname(surname))
             .and(UserSpecifications.isActive(active));
 
