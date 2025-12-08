@@ -86,13 +86,7 @@ jobs:
 
       - name: Run tests
         run: |
-          ./gradlew test \
-            -Dspring.profiles.active=test \
-            -DDB_URL=jdbc:postgresql://localhost:5432/testdb \
-            -DDB_USERNAME=testuser \
-            -DDB_PASSWORD=testpassword \
-            -DREDIS_HOST=localhost \
-            -DREDIS_PORT=6379
+          ./gradlew test --tests "*ServiceTest" --tests "*Test"
 
   sonarqube:
     name: Code Analysis
