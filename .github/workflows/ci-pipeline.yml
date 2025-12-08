@@ -87,7 +87,7 @@ jobs:
 
       - name: Run tests
         run: |
-          ./gradlew test --info  # Добавить --info для подробного вывода
+          ./gradlew test --info
         env:
           SPRING_PROFILES_ACTIVE: test
           DB_HOST: localhost
@@ -97,6 +97,13 @@ jobs:
           DB_PASSWORD: testpassword
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+
+      - name: Upload Jacoco report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/test/
+          retention-days: 7
 
   sonarqube:
     name: Code Analysis
@@ -116,9 +123,14 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Download Jacoco report
+        uses: actions/download-artifact@v4
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/test/
+
       - name: Run SonarQube analysis
         run: |
-          ./gradlew jacocoTestReport
           ./gradlew sonarqube
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
