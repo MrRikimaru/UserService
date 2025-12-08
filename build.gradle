@@ -112,6 +112,7 @@ test {
 
 jacoco {
 	toolVersion = "0.8.11"
+	reportsDirectory = layout.buildDirectory.dir('reports/jacoco')
 }
 
 jacocoTestReport {
@@ -120,6 +121,7 @@ jacocoTestReport {
 		xml.required = true
 		html.required = true
 		csv.required = false
+		xml.destination file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
 	}
 	afterEvaluate {
 		classDirectories.setFrom(files(classDirectories.files.collect {
