@@ -93,28 +93,36 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.10'
 
-      - name: Run tests
-        run: gradle test integrationTest
+      - name: Wait for services
+        run: |
+          echo "Waiting for PostgreSQL..."
+          sleep 5
+          echo "Waiting for Redis..."
+          sleep 3
+
+      - name: Run tests with proper environment
+        run: |
+          gradle test integrationTest \
+            --info \
+            --stacktrace \
+            -Dspring.profiles.active=test \
+            -DDB_URL=jdbc:postgresql://localhost:5432/testdb \
+            -DDB_USERNAME=testuser \
+            -DB_PASSWORD=testpassword \
+            -DREDIS_HOST=localhost \
+            -DREDIS_PORT=6379
         env:
           SPRING_PROFILES_ACTIVE: test
           DB_URL: jdbc:postgresql://localhost:5432/testdb
           DB_USERNAME: testuser
           DB_PASSWORD: testpassword
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
