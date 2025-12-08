@@ -21,8 +21,20 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.10'
+
       - name: Build with Gradle
-        run: ./gradlew build -x test
+        run: gradle build -x test
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: build/libs/
+          retention-days: 7
 
   test:
     name: Test
@@ -100,7 +112,6 @@ jobs:
           ./gradlew sonarqube
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
   docker-build:
     name: Docker Image
     runs-on: ubuntu-latest
