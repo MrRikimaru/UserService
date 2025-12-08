@@ -64,6 +64,7 @@ dependencies {
 	testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:postgresql'
+	testImplementation 'com.redis:testcontainers-redis:2.2.4'
 	testImplementation 'org.testcontainers:testcontainers'
 
 	// Mockito
@@ -85,12 +86,27 @@ dependencyManagement {
 test {
 	useJUnitPlatform()
 	testLogging {
-		events "passed", "skipped", "failed"
+		events "passed", "skipped", "failed", "standard_out", "standard_error"
 		exceptionFormat "full"
+		showExceptions true
+		showCauses true
+		showStackTraces true
 	}
-	systemProperty "spring.profiles.active", "test"
-	maxParallelForks = 1
-	forkEvery = 1
+
+	systemProperties = [
+			'spring.profiles.active': 'test',
+			'DB_HOST': 'localhost',
+			'DB_PORT': '5432',
+			'DB_NAME': 'testdb',
+			'DB_USERNAME': 'testuser',
+			'DB_PASSWORD': 'testpassword',
+			'REDIS_HOST': 'localhost',
+			'REDIS_PORT': '6379'
+	]
+
+	maxParallelForks = 2
+	forkEvery = 100
+
 	finalizedBy jacocoTestReport
 }
 

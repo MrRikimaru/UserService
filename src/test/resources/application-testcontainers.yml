@@ -1,0 +1,21 @@
+spring:
+  config:
+    activate:
+      on-profile: testcontainers
+
+  datasource:
+    url: jdbc:tc:postgresql:15-alpine:///testdb
+    username: testuser
+    password: testpassword
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 30000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
