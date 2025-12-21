@@ -3,9 +3,9 @@ spring:
     activate:
       on-profile: docker
   datasource:
-    url: jdbc:postgresql://postgres:5432/userservice
-    username: postgres
-    password: root
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://user-postgres:5432/userservice}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-timeout: 60000
@@ -24,16 +24,26 @@ spring:
     default-schema: public
   data:
     redis:
-      host: redis
-      port: 6379
-      password: redispassword123
+      host: ${SPRING_REDIS_HOST:microservice-redis}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:redispassword123}
       database: 0
-      timeout: 60000
+      timeout: 10000ms
       lettuce:
         pool:
           max-active: 8
           max-idle: 8
           min-idle: 0
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "user-service:"
+
+server:
+  port: ${SERVER_PORT:8082}
 
 management:
   endpoints:
@@ -50,3 +60,4 @@ logging:
     com.example.userservice: INFO
     org.hibernate.SQL: WARN
     com.zaxxer.hikari: DEBUG
+    org.springframework.data.redis: DEBUG

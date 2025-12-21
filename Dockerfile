@@ -9,9 +9,6 @@ WORKDIR /app
 COPY build.gradle settings.gradle* gradle.properties gradlew ./
 COPY gradle ./gradle
 
-# Копирование конфигурационных файлов checkstyle
-COPY config ./config
-
 # Установка прав на выполнение для gradlew
 RUN chmod +x gradlew
 
@@ -37,12 +34,8 @@ USER spring:spring
 # Копирование JAR файла из этапа сборки
 COPY --from=builder /app/build/libs/*.jar app.jar
 
-# Настройка Health Check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1
-
 # Открытие порта
-EXPOSE 8080
+EXPOSE 8082
 
 # Запуск приложения
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

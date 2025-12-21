@@ -25,17 +25,17 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
   Optional<User> findByIdWithCards(@Param("id") Long id);
 
   @Query(
-      "SELECT u FROM User u WHERE "
-          + "(:name IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND "
-          + "(:surname IS NULL OR LOWER(u.surname) LIKE LOWER(CONCAT('%', :surname, '%')))")
+          "SELECT u FROM User u WHERE "
+                  + "(:name IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND "
+                  + "(:surname IS NULL OR LOWER(u.surname) LIKE LOWER(CONCAT('%', :surname, '%')))")
   Page<User> findByNameAndSurnameContaining(
-      @Param("name") String name, @Param("surname") String surname, Pageable pageable);
+          @Param("name") String name, @Param("surname") String surname, Pageable pageable);
 
   @Query(
-      value = "SELECT * FROM users u WHERE u.active = :active AND u.birth_date < :birthDate",
-      nativeQuery = true)
+          value = "SELECT * FROM users u WHERE u.active = :active AND u.birth_date < :birthDate",
+          nativeQuery = true)
   Page<User> findActiveUsersBornBefore(
-      @Param("birthDate") LocalDate birthDate, @Param("active") boolean active, Pageable pageable);
+          @Param("birthDate") LocalDate birthDate, @Param("active") boolean active, Pageable pageable);
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("UPDATE User u SET u.active = :active WHERE u.id = :id")

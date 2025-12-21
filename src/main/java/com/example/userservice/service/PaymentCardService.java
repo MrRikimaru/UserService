@@ -33,10 +33,10 @@ public class PaymentCardService {
 
   @Transactional
   @Caching(
-      evict = {
-        @CacheEvict(value = "userCards", key = "#userId"),
-        @CacheEvict(value = "usersWithCards", key = "#userId")
-      })
+          evict = {
+                  @CacheEvict(value = "userCards", key = "#userId"),
+                  @CacheEvict(value = "usersWithCards", key = "#userId")
+          })
   public PaymentCardResponseDTO createCard(PaymentCardRequestDTO cardRequestDTO, Long userId) {
     log.info("Creating payment card for user: {}", userId);
     User user = userService.getUserEntityById(userId);
@@ -57,20 +57,20 @@ public class PaymentCardService {
   public PaymentCardResponseDTO getCardById(Long id) {
     log.debug("Fetching payment card by id: {}", id);
     PaymentCard card =
-        paymentCardRepository
-            .findById(id)
-            .orElseThrow(
-                () -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
+            paymentCardRepository
+                    .findById(id)
+                    .orElseThrow(
+                            () -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
     return paymentCardMapper.toDTO(card);
   }
 
   public Page<PaymentCardResponseDTO> getAllCards(
-      String holder, Boolean active, Long userId, Pageable pageable) {
+          String holder, Boolean active, Long userId, Pageable pageable) {
 
     Specification<PaymentCard> spec =
-        PaymentCardSpecifications.hasHolderName(holder)
-            .and(PaymentCardSpecifications.isActive(active))
-            .and(PaymentCardSpecifications.hasUserId(userId));
+            PaymentCardSpecifications.hasHolderName(holder)
+                    .and(PaymentCardSpecifications.isActive(active))
+                    .and(PaymentCardSpecifications.hasUserId(userId));
 
     return paymentCardRepository.findAll(spec, pageable).map(paymentCardMapper::toDTO);
   }
@@ -85,40 +85,40 @@ public class PaymentCardService {
 
   public Page<PaymentCardResponseDTO> getActiveCardsByUserId(Long userId, Pageable pageable) {
     return paymentCardRepository
-        .findByUserIdAndActiveStatus(userId, true, pageable)
-        .map(paymentCardMapper::toDTO);
+            .findByUserIdAndActiveStatus(userId, true, pageable)
+            .map(paymentCardMapper::toDTO);
   }
 
   @Transactional
   @Caching(
-      evict = {
-        @CacheEvict(value = "userCards", key = "#result.userId"),
-        @CacheEvict(value = "usersWithCards", key = "#result.userId")
-      })
+          evict = {
+                  @CacheEvict(value = "userCards", key = "#result.userId"),
+                  @CacheEvict(value = "usersWithCards", key = "#result.userId")
+          })
   public PaymentCardResponseDTO updateCard(Long id, PaymentCardRequestDTO cardRequestDTO) {
     log.info("Updating payment card with id: {}", id);
     PaymentCard card =
-        paymentCardRepository
-            .findById(id)
-            .orElseThrow(
-                () -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
+            paymentCardRepository
+                    .findById(id)
+                    .orElseThrow(
+                            () -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
 
     if (cardRequestDTO.getExpirationDate() != null
-        && !cardRequestDTO.getExpirationDate().isAfter(java.time.LocalDate.now())) {
+            && !cardRequestDTO.getExpirationDate().isAfter(java.time.LocalDate.now())) {
       log.warn("Invalid expiration date provided for card id: {}", id);
       throw new IllegalArgumentException("Expiration date must be in the future");
     }
 
     if (!card.getNumber().equals(cardRequestDTO.getNumber())) {
       paymentCardRepository
-          .findByNumber(cardRequestDTO.getNumber())
-          .ifPresent(
-              existingCard -> {
-                if (!existingCard.getId().equals(id)) {
-                  log.warn("Duplicate card number attempt for card id: {}", id);
-                  throw new DuplicateCardNumberException("Card with this number already exists");
-                }
-              });
+              .findByNumber(cardRequestDTO.getNumber())
+              .ifPresent(
+                      existingCard -> {
+                        if (!existingCard.getId().equals(id)) {
+                          log.warn("Duplicate card number attempt for card id: {}", id);
+                          throw new DuplicateCardNumberException("Card with this number already exists");
+                        }
+                      });
     }
 
     card.setNumber(cardRequestDTO.getNumber());
@@ -150,21 +150,21 @@ public class PaymentCardService {
 
   public PaymentCardResponseDTO getCardByUserAndId(Long userId, Long cardId) {
     PaymentCard card =
-        paymentCardRepository
-            .findByIdAndUserId(cardId, userId)
-            .orElseThrow(
-                () ->
-                    new PaymentCardNotFoundException(
-                        PAYMENT_CARD_NOT_FOUND_MESSAGE + cardId + " for user: " + userId));
+            paymentCardRepository
+                    .findByIdAndUserId(cardId, userId)
+                    .orElseThrow(
+                            () ->
+                                    new PaymentCardNotFoundException(
+                                            PAYMENT_CARD_NOT_FOUND_MESSAGE + cardId + " for user: " + userId));
     return paymentCardMapper.toDTO(card);
   }
 
   public PaymentCardResponseDTO getCardByNumber(String number) {
     PaymentCard card =
-        paymentCardRepository
-            .findByNumber(number)
-            .orElseThrow(
-                () -> new PaymentCardNotFoundException("Card not found with number: " + number));
+            paymentCardRepository
+                    .findByNumber(number)
+                    .orElseThrow(
+                            () -> new PaymentCardNotFoundException("Card not found with number: " + number));
     return paymentCardMapper.toDTO(card);
   }
 
@@ -180,7 +180,7 @@ public class PaymentCardService {
 
   private PaymentCard getCardEntityById(Long id) {
     return paymentCardRepository
-        .findById(id)
-        .orElseThrow(() -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
+            .findById(id)
+            .orElseThrow(() -> new PaymentCardNotFoundException(PAYMENT_CARD_NOT_FOUND_MESSAGE + id));
   }
 }

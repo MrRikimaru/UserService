@@ -18,7 +18,6 @@ public class CacheService {
 
   private final RedisTemplate<String, Object> redisTemplate;
   private final CacheManager cacheManager;
-  private static final String CACHE_KEY_PREFIX = "user-service:";
 
   public void evictUserCaches(Long userId) {
     try {
@@ -64,9 +63,8 @@ public class CacheService {
       log.info("Starting to evict all user caches...");
       Set<String> allKeys = new HashSet<>();
 
-      scanKeys(CACHE_KEY_PREFIX + "users::*", allKeys);
-      scanKeys(CACHE_KEY_PREFIX + "usersWithCards::*", allKeys);
-      scanKeys(CACHE_KEY_PREFIX + "userCards::*", allKeys);
+      // Ищем все ключи с префиксом
+      scanKeys("user-service:*", allKeys);
 
       if (!allKeys.isEmpty()) {
         redisTemplate.delete(allKeys);
@@ -82,7 +80,7 @@ public class CacheService {
 
   private void scanKeys(String pattern, Set<String> keys) {
     try (Cursor<String> cursor =
-        redisTemplate.scan(ScanOptions.scanOptions().match(pattern).count(100).build())) {
+                 redisTemplate.scan(ScanOptions.scanOptions().match(pattern).count(100).build())) {
       while (cursor.hasNext()) {
         String key = cursor.next();
         if (key != null) {
@@ -98,23 +96,45 @@ public class CacheService {
     CacheStats stats = new CacheStats();
 
     try {
+      Set<String> allKeys = new HashSet<>();
+      // Ищем все ключи, начинающиеся с префикса
+      scanKeys("user-service:*", allKeys);
+
+      log.info("Found {} total keys in Redis: {}", allKeys.size(), allKeys);
+
       Set<String> userKeys = new HashSet<>();
       Set<String> userWithCardsKeys = new HashSet<>();
       Set<String> userCardsKeys = new HashSet<>();
 
-      scanKeys(CACHE_KEY_PREFIX + "users::*", userKeys);
-      scanKeys(CACHE_KEY_PREFIX + "usersWithCards::*", userWithCardsKeys);
-      scanKeys(CACHE_KEY_PREFIX + "userCards::*", userCardsKeys);
+      for (String key : allKeys) {
+        log.debug("Analyzing key: {}", key);
+        // Проверяем по частям
+        if (key.contains("::users::") || key.contains(":users::")) {
+          if (!key.contains("usersWithCards")) {
+            userKeys.add(key);
+            log.debug("Added to userKeys: {}", key);
+          }
+        } else if (key.contains("::usersWithCards::") || key.contains(":usersWithCards::")) {
+          userWithCardsKeys.add(key);
+          log.debug("Added to userWithCardsKeys: {}", key);
+        } else if (key.contains("::userCards::") || key.contains(":userCards::")) {
+          userCardsKeys.add(key);
+          log.debug("Added to userCardsKeys: {}", key);
+        } else {
+          log.debug("Key doesn't match any known pattern: {}", key);
+        }
+      }
 
       stats.setUserCacheKeys(userKeys);
       stats.setUserWithCardsCacheKeys(userWithCardsKeys);
       stats.setUserCardsCacheKeys(userCardsKeys);
 
-      log.debug(
-          "Cache stats collected: users={}, usersWithCards={}, userCards={}",
-          userKeys.size(),
-          userWithCardsKeys.size(),
-          userCardsKeys.size());
+      log.info(
+              "Cache stats collected: users={}, usersWithCards={}, userCards={}, total={}",
+              userKeys.size(),
+              userWithCardsKeys.size(),
+              userCardsKeys.size(),
+              allKeys.size());
 
     } catch (Exception e) {
       log.error("Error collecting cache stats: {}", e.getMessage(), e);
@@ -129,20 +149,20 @@ public class CacheService {
 
       log.info("=== CURRENT CACHE STATE ===");
       log.info(
-          "Users cache keys ({}): {}", stats.getUserCacheKeys().size(), stats.getUserCacheKeys());
+              "Users cache keys ({}): {}", stats.getUserCacheKeys().size(), stats.getUserCacheKeys());
       log.info(
-          "UsersWithCards cache keys ({}): {}",
-          stats.getUserWithCardsCacheKeys().size(),
-          stats.getUserWithCardsCacheKeys());
+              "UsersWithCards cache keys ({}): {}",
+              stats.getUserWithCardsCacheKeys().size(),
+              stats.getUserWithCardsCacheKeys());
       log.info(
-          "UserCards cache keys ({}): {}",
-          stats.getUserCardsCacheKeys().size(),
-          stats.getUserCardsCacheKeys());
+              "UserCards cache keys ({}): {}",
+              stats.getUserCardsCacheKeys().size(),
+              stats.getUserCardsCacheKeys());
       log.info(
-          "=== TOTAL KEYS: {} ===",
-          stats.getUserCacheKeys().size()
-              + stats.getUserWithCardsCacheKeys().size()
-              + stats.getUserCardsCacheKeys().size());
+              "=== TOTAL KEYS: {} ===",
+              stats.getUserCacheKeys().size()
+                      + stats.getUserWithCardsCacheKeys().size()
+                      + stats.getUserCardsCacheKeys().size());
 
     } catch (Exception e) {
       log.error("Error logging cache state: {}", e.getMessage(), e);

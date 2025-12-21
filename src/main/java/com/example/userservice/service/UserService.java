@@ -44,7 +44,7 @@ public class UserService {
     if (userRepository.existsByEmail(userRequestDTO.getEmail())) {
       log.warn("Duplicate email attempt: {}", userRequestDTO.getEmail());
       throw new DuplicateEmailException(
-          "User with email " + userRequestDTO.getEmail() + " already exists");
+              "User with email " + userRequestDTO.getEmail() + " already exists");
     }
     User user = userMapper.toEntity(userRequestDTO);
     User savedUser = userRepository.save(user);
@@ -56,18 +56,18 @@ public class UserService {
   public UserResponseDTO getUserById(Long id) {
     log.debug("Fetching user by id: {}", id);
     User user =
-        userRepository
-            .findById(id)
-            .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
+            userRepository
+                    .findById(id)
+                    .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
     return userMapper.toDTO(user);
   }
 
   @Cacheable(value = "usersWithCards", key = "#id")
   public UserWithCardsResponseDTO getUserWithCardsById(Long id) {
     User user =
-        userRepository
-            .findByIdWithCards(id)
-            .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
+            userRepository
+                    .findByIdWithCards(id)
+                    .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
     UserWithCardsResponseDTO userWithCards = new UserWithCardsResponseDTO();
     userWithCards.setId(user.getId());
     userWithCards.setName(user.getName());
@@ -79,19 +79,19 @@ public class UserService {
     userWithCards.setUpdatedAt(user.getUpdatedAt());
 
     List<PaymentCardResponseDTO> cards =
-        user.getPaymentCards().stream().map(paymentCardMapper::toDTO).toList();
+            user.getPaymentCards().stream().map(paymentCardMapper::toDTO).toList();
     userWithCards.setPaymentCards(cards);
 
     return userWithCards;
   }
 
   public Page<UserResponseDTO> getAllUsers(
-      String name, String surname, Boolean active, Pageable pageable) {
+          String name, String surname, Boolean active, Pageable pageable) {
 
     Specification<User> spec =
-        UserSpecifications.hasFirstName(name)
-            .and(UserSpecifications.hasSurname(surname))
-            .and(UserSpecifications.isActive(active));
+            UserSpecifications.hasFirstName(name)
+                    .and(UserSpecifications.hasSurname(surname))
+                    .and(UserSpecifications.isActive(active));
 
     return userRepository.findAll(spec, pageable).map(userMapper::toDTO);
   }
@@ -101,37 +101,37 @@ public class UserService {
   }
 
   public Page<UserResponseDTO> getUsersByNameAndSurnameContaining(
-      String name, String surname, Pageable pageable) {
+          String name, String surname, Pageable pageable) {
     return userRepository
-        .findByNameAndSurnameContaining(name, surname, pageable)
-        .map(userMapper::toDTO);
+            .findByNameAndSurnameContaining(name, surname, pageable)
+            .map(userMapper::toDTO);
   }
 
   public Page<UserResponseDTO> getActiveUsersBornBefore(LocalDate birthDate, Pageable pageable) {
     return userRepository
-        .findActiveUsersBornBefore(birthDate, true, pageable)
-        .map(userMapper::toDTO);
+            .findActiveUsersBornBefore(birthDate, true, pageable)
+            .map(userMapper::toDTO);
   }
 
   @Transactional
   @Caching(
-      evict = {
-        @CacheEvict(value = "users", key = "#id"),
-        @CacheEvict(value = "usersWithCards", key = "#id"),
-        @CacheEvict(value = "userCards", key = "#id")
-      })
+          evict = {
+                  @CacheEvict(value = "users", key = "#id"),
+                  @CacheEvict(value = "usersWithCards", key = "#id"),
+                  @CacheEvict(value = "userCards", key = "#id")
+          })
   public UserResponseDTO updateUser(Long id, UserRequestDTO userRequestDTO) {
     log.info("Updating user with id: {}", id);
     User user =
-        userRepository
-            .findById(id)
-            .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
+            userRepository
+                    .findById(id)
+                    .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
 
     if (!user.getEmail().equals(userRequestDTO.getEmail())
-        && userRepository.existsByEmail(userRequestDTO.getEmail())) {
+            && userRepository.existsByEmail(userRequestDTO.getEmail())) {
       log.warn("Duplicate email attempt during update for user id: {}", id);
       throw new DuplicateEmailException(
-          "User with email " + userRequestDTO.getEmail() + " already exists");
+              "User with email " + userRequestDTO.getEmail() + " already exists");
     }
 
     user.setName(userRequestDTO.getName());
@@ -146,17 +146,17 @@ public class UserService {
 
   User getUserEntityById(Long id) {
     return userRepository
-        .findById(id)
-        .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
+            .findById(id)
+            .orElseThrow(() -> new UserNotFoundException(USER_NOT_FOUND_MESSAGE + id));
   }
 
   @Transactional
   @Caching(
-      evict = {
-        @CacheEvict(value = "users", key = "#id"),
-        @CacheEvict(value = "usersWithCards", key = "#id"),
-        @CacheEvict(value = "userCards", key = "#id")
-      })
+          evict = {
+                  @CacheEvict(value = "users", key = "#id"),
+                  @CacheEvict(value = "usersWithCards", key = "#id"),
+                  @CacheEvict(value = "userCards", key = "#id")
+          })
   public void activateUser(Long id) {
     log.info("Activating user with id: {}", id);
     if (!userRepository.existsById(id)) {
@@ -169,11 +169,11 @@ public class UserService {
 
   @Transactional
   @Caching(
-      evict = {
-        @CacheEvict(value = "users", key = "#id"),
-        @CacheEvict(value = "usersWithCards", key = "#id"),
-        @CacheEvict(value = "userCards", key = "#id")
-      })
+          evict = {
+                  @CacheEvict(value = "users", key = "#id"),
+                  @CacheEvict(value = "usersWithCards", key = "#id"),
+                  @CacheEvict(value = "userCards", key = "#id")
+          })
   public void deactivateUser(Long id) {
     log.info("Deactivating user with id: {}", id);
     if (!userRepository.existsById(id)) {
@@ -200,11 +200,11 @@ public class UserService {
 
   @Transactional
   @Caching(
-      evict = {
-        @CacheEvict(value = "users", key = "#id"),
-        @CacheEvict(value = "usersWithCards", key = "#id"),
-        @CacheEvict(value = "userCards", key = "#id")
-      })
+          evict = {
+                  @CacheEvict(value = "users", key = "#id"),
+                  @CacheEvict(value = "usersWithCards", key = "#id"),
+                  @CacheEvict(value = "userCards", key = "#id")
+          })
   public void deleteUser(Long id) {
     log.info("Deleting user with id: {}", id);
     if (!userRepository.existsById(id)) {
