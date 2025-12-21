@@ -15,7 +15,7 @@ public class PaymentCardSpecifications {
         return criteriaBuilder.conjunction();
       }
       return criteriaBuilder.like(
-              criteriaBuilder.lower(root.get("holder")), "%" + holder.toLowerCase() + "%");
+          criteriaBuilder.lower(root.get("holder")), "%" + holder.toLowerCase() + "%");
     };
   }
 

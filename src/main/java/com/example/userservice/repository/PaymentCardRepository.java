@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PaymentCardRepository
-        extends JpaRepository<PaymentCard, Long>, JpaSpecificationExecutor<PaymentCard> {
+    extends JpaRepository<PaymentCard, Long>, JpaSpecificationExecutor<PaymentCard> {
 
   List<PaymentCard> findByUserId(Long userId);
 
@@ -24,11 +24,11 @@ public interface PaymentCardRepository
 
   @Query("SELECT pc FROM PaymentCard pc WHERE pc.user.id = :userId AND pc.active = :active")
   Page<PaymentCard> findByUserIdAndActiveStatus(
-          @Param("userId") Long userId, @Param("active") Boolean active, Pageable pageable);
+      @Param("userId") Long userId, @Param("active") Boolean active, Pageable pageable);
 
   @Query(
-          value = "SELECT COUNT(*) FROM payment_cards pc WHERE pc.user_id = :userId",
-          nativeQuery = true)
+      value = "SELECT COUNT(*) FROM payment_cards pc WHERE pc.user_id = :userId",
+      nativeQuery = true)
   int countCardsByUserId(@Param("userId") Long userId);
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)

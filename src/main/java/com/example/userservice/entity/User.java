@@ -22,11 +22,11 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(
-        name = "users",
-        indexes = {
-                @Index(name = "idx_user_email", columnList = "email"),
-                @Index(name = "idx_user_active", columnList = "active")
-        })
+    name = "users",
+    indexes = {
+      @Index(name = "idx_user_email", columnList = "email"),
+      @Index(name = "idx_user_active", columnList = "active")
+    })
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter

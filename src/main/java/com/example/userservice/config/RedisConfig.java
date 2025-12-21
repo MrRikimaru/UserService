@@ -27,9 +27,9 @@ public class RedisConfig {
     mapper.registerModule(new JavaTimeModule());
     // Включаем сохранение информации о типе в JSON только для Redis
     mapper.activateDefaultTyping(
-            mapper.getPolymorphicTypeValidator(),
-            ObjectMapper.DefaultTyping.NON_FINAL,
-            JsonTypeInfo.As.PROPERTY);
+        mapper.getPolymorphicTypeValidator(),
+        ObjectMapper.DefaultTyping.NON_FINAL,
+        JsonTypeInfo.As.PROPERTY);
     return mapper;
   }
 
@@ -59,15 +59,15 @@ public class RedisConfig {
     ObjectMapper cacheObjectMapper = redisObjectMapper();
 
     RedisCacheConfiguration config =
-            RedisCacheConfiguration.defaultCacheConfig()
-                    .entryTtl(Duration.ofHours(1))
-                    .serializeKeysWith(
-                            RedisSerializationContext.SerializationPair.fromSerializer(
-                                    new StringRedisSerializer()))
-                    .serializeValuesWith(
-                            RedisSerializationContext.SerializationPair.fromSerializer(
-                                    new GenericJackson2JsonRedisSerializer(cacheObjectMapper)))
-                    .prefixCacheNameWith("user-service:");
+        RedisCacheConfiguration.defaultCacheConfig()
+            .entryTtl(Duration.ofHours(1))
+            .serializeKeysWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(
+                    new StringRedisSerializer()))
+            .serializeValuesWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(
+                    new GenericJackson2JsonRedisSerializer(cacheObjectMapper)))
+            .prefixCacheNameWith("user-service:");
 
     return RedisCacheManager.builder(connectionFactory).cacheDefaults(config).build();
   }

@@ -21,12 +21,12 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(
-        name = "payment_cards",
-        indexes = {
-                @Index(name = "idx_card_user_id", columnList = "user_id"),
-                @Index(name = "idx_card_number", columnList = "number"),
-                @Index(name = "idx_card_active", columnList = "active")
-        })
+    name = "payment_cards",
+    indexes = {
+      @Index(name = "idx_card_user_id", columnList = "user_id"),
+      @Index(name = "idx_card_number", columnList = "number"),
+      @Index(name = "idx_card_active", columnList = "active")
+    })
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter

@@ -15,7 +15,7 @@ public class UserSpecifications {
         return criteriaBuilder.conjunction();
       }
       return criteriaBuilder.like(
-              criteriaBuilder.lower(root.get("name")), "%" + name.toLowerCase() + "%");
+          criteriaBuilder.lower(root.get("name")), "%" + name.toLowerCase() + "%");
     };
   }
 
@@ -25,7 +25,7 @@ public class UserSpecifications {
         return criteriaBuilder.conjunction();
       }
       return criteriaBuilder.like(
-              criteriaBuilder.lower(root.get("surname")), "%" + surname.toLowerCase() + "%");
+          criteriaBuilder.lower(root.get("surname")), "%" + surname.toLowerCase() + "%");
     };
   }
 
